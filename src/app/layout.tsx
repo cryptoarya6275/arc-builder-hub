@@ -1,6 +1,6 @@
 // src/app/layout.tsx
 import type { Metadata } from "next";
-import "../styles/globals.css";
+import "./globals.css";
 import { WalletProvider } from "@/lib/walletContext";
 
 export const metadata: Metadata = {
