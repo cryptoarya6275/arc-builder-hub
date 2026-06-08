@@ -1,0 +1,30 @@
+// src/app/layout.tsx
+import type { Metadata } from "next";
+import "../styles/globals.css";
+import { WalletProvider } from "@/lib/walletContext";
+
+export const metadata: Metadata = {
+  title: "Arc Builder Hub — Testnet Toolkit",
+  description:
+    "A simple, powerful toolkit for builders on the Arc Layer 1 testnet. Deploy tokens, interact with contracts, and explore the Arc ecosystem.",
+  keywords: ["Arc", "blockchain", "testnet", "ERC20", "Web3", "builder", "toolkit"],
+  openGraph: {
+    title: "Arc Builder Hub",
+    description: "Testnet toolkit for Arc L1 builders",
+    type: "website",
+  },
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en" className="dark">
+      <body className="noise min-h-screen">
+        <WalletProvider>{children}</WalletProvider>
+      </body>
+    </html>
+  );
+}
