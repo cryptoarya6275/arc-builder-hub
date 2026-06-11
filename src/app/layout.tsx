@@ -1,7 +1,7 @@
 // src/app/layout.tsx
 import type { Metadata } from "next";
 import "./globals.css";
-import { WalletProvider } from "@/lib/walletContext";
+import { Web3Provider } from "@/lib/Web3Provider";
 
 export const metadata: Metadata = {
   title: "Arc Builder Hub — Testnet Toolkit",
@@ -23,7 +23,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className="noise min-h-screen">
-        <WalletProvider>{children}</WalletProvider>
+        <Web3Provider>{children}</Web3Provider>
       </body>
     </html>
   );
