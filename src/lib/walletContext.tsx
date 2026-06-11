@@ -115,9 +115,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     if (!result.success) {
       updateState({ error: result.error || "Failed to switch network" });
     } else {
-      // Re-initialise provider/signer after network switch so balance & network
-      // state are fresh. The chainChanged event fires too, but it doesn't
-      // refresh the provider or balance.
+      // Wait for MetaMask to finish the switch before re-reading chain state
+      await new Promise((r) => setTimeout(r, 800));
       try {
         const provider = new ethers.BrowserProvider(window.ethereum!);
         const signer = await provider.getSigner();
@@ -135,7 +134,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           error: null,
         });
       } catch {
-        // fallback: chainChanged listener will handle state update
+        // chainChanged listener will handle state update as fallback
       }
     }
   };
