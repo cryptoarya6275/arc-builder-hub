@@ -48,7 +48,10 @@ export default function ERC20Deployer() {
     try {
       const supplyWei = ethers.parseUnits(form.supply, 18);
       const factory = new ethers.ContractFactory(SIMPLE_ERC20_ABI, DEPLOY_BYTECODE, signer);
-      const contract = await factory.deploy(form.name.trim(), form.symbol.trim().toUpperCase(), supplyWei);
+      // Provide explicit gasLimit to bypass eth_estimateGas (Arc Testnet RPC returns null)
+      const contract = await factory.deploy(form.name.trim(), form.symbol.trim().toUpperCase(), supplyWei, {
+        gasLimit: 3_000_000,
+      });
       const tx = contract.deploymentTransaction();
 
       setDeploy({
