@@ -1,10 +1,24 @@
 // src/components/ui/Hero.tsx
 "use client";
 
+import { useState } from "react";
 import { useWallet } from "@/lib/walletContext";
+import { ARC_TESTNET, switchToArcTestnet } from "@/lib/arcNetwork";
 
 export default function Hero() {
   const { isConnected, connect, isConnecting } = useWallet();
+  const [addingNetwork, setAddingNetwork] = useState(false);
+  const [networkAdded, setNetworkAdded] = useState(false);
+
+  const handleAddNetwork = async () => {
+    setAddingNetwork(true);
+    const result = await switchToArcTestnet();
+    setAddingNetwork(false);
+    if (result.success) {
+      setNetworkAdded(true);
+      setTimeout(() => setNetworkAdded(false), 3000);
+    }
+  };
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
@@ -29,7 +43,7 @@ export default function Hero() {
         {/* Version tag */}
         <div className="inline-flex items-center gap-2 arc-badge bg-arc-400/8 text-arc-400/80 border border-arc-400/15 mb-8 animate-fade-in">
           <span className="w-1.5 h-1.5 rounded-full bg-arc-400 animate-pulse" />
-          <span className="font-mono text-xs">ARC TESTNET · CHAIN ID {5042002}</span>
+          <span className="font-mono text-xs">ARC TESTNET · CHAIN ID {ARC_TESTNET.chainIdDecimal}</span>
         </div>
 
         {/* Main heading */}
@@ -66,7 +80,7 @@ export default function Hero() {
             RPC: rpc.testnet.arc.network
           </span>
           <span className="text-dark-700">·</span>
-          <span>Currency: USDC</span>
+          <span className="text-arc-400/70">Gas: USDC</span>
           <span className="text-dark-700">·</span>
           <a
             href="https://testnet.arcscan.app"
@@ -112,6 +126,40 @@ export default function Hero() {
               Go to Dashboard ↓
             </a>
           )}
+
+          {/* Add Arc Testnet button */}
+          <button
+            onClick={handleAddNetwork}
+            disabled={addingNetwork || networkAdded}
+            className="arc-button-secondary text-base px-8 py-4 flex items-center gap-2"
+          >
+            {networkAdded ? (
+              <>
+                <svg className="w-5 h-5 text-green-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                <span className="text-green-400">Network Added!</span>
+              </>
+            ) : addingNetwork ? (
+              <>
+                <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Adding...
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="16" />
+                  <line x1="8" y1="12" x2="16" y2="12" />
+                </svg>
+                Add Arc Testnet
+              </>
+            )}
+          </button>
+
           <a
             href="https://docs.arc.io"
             target="_blank"
