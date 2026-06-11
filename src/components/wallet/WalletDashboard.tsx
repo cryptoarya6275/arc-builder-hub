@@ -208,7 +208,7 @@ export default function WalletDashboard() {
                         Wrong Network
                       </div>
                       <div className="font-mono text-xs text-dark-500 mt-0.5">
-                        Current Chain ID: {chainId} · Switch to Arc Testnet (5042002)
+                        Current Chain ID: {chainId} · Switch to Arc Testnet ({ARC_TESTNET.chainIdDecimal})
                       </div>
                     </div>
                   </div>
