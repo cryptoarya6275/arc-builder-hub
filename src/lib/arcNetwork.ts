@@ -1,7 +1,11 @@
 // src/lib/arcNetwork.ts
 
+// Arc Testnet accepts both chain ID representations
+// 0x4CE012 = 5038098 | 0x4CEF52 = 5042002
+export const ARC_CHAIN_IDS = [5038098, 5042002];
+
 export const ARC_TESTNET = {
-  chainId: "0x4CE012", // 5038098 decimal
+  chainId: "0x4CE012",
   chainIdDecimal: 5038098,
   chainName: "Arc Testnet",
   rpcUrls: ["https://rpc.testnet.arc.network"],
@@ -50,7 +54,8 @@ export async function switchToArcTestnet(): Promise<{ success: boolean; error?: 
 }
 
 export function isArcTestnet(chainId: number | null): boolean {
-  return chainId === ARC_TESTNET.chainIdDecimal;
+  if (chainId === null) return false;
+  return ARC_CHAIN_IDS.includes(chainId);
 }
 
 export function shortenAddress(address: string): string {
