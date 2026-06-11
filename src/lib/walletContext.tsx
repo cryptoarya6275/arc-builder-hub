@@ -6,11 +6,12 @@ import React, {
   useContext,
   useState,
   useEffect,
-  useCallback,
   ReactNode,
 } from "react";
 import { ethers } from "ethers";
-import { ARC_TESTNET, isArcTestnet, switchToArcTestnet } from "./arcNetwork";
+import { useAccount, useBalance, useSwitchChain, useDisconnect, useConnectorClient } from "wagmi";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
+import { isArcTestnet, ARC_TESTNET, switchToArcTestnet } from "./arcNetwork";
 
 interface WalletState {
   address: string | null;
@@ -25,7 +26,7 @@ interface WalletState {
 }
 
 interface WalletContextType extends WalletState {
-  connect: () => Promise<void>;
+  connect: () => void;
   disconnect: () => void;
   switchNetwork: () => Promise<void>;
   refreshBalance: () => Promise<void>;
@@ -33,180 +34,95 @@ interface WalletContextType extends WalletState {
 
 const WalletContext = createContext<WalletContextType | null>(null);
 
-export function WalletProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<WalletState>({
-    address: null,
-    balance: null,
-    chainId: null,
-    isConnected: false,
-    isConnecting: false,
-    isCorrectNetwork: false,
-    provider: null,
-    signer: null,
-    error: null,
-  });
+function WalletBridge({ children }: { children: ReactNode }) {
+  const { address, isConnected, isConnecting, chainId } = useAccount();
+  const { data: balanceData, refetch: refetchBalance } = useBalance({ address });
+  const { switchChain } = useSwitchChain();
+  const { disconnect: wagmiDisconnect } = useDisconnect();
+  const { openConnectModal } = useConnectModal();
+  const { data: connectorClient } = useConnectorClient();
 
-  const updateState = (partial: Partial<WalletState>) => {
-    setState((prev) => ({ ...prev, ...partial }));
-  };
+  const [signer, setSigner] = useState<ethers.JsonRpcSigner | null>(null);
+  const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const refreshBalance = useCallback(async () => {
-    if (!state.provider || !state.address) return;
-    try {
-      const bal = await state.provider.getBalance(state.address);
-      updateState({ balance: ethers.formatEther(bal) });
-    } catch {
-      // ignore
-    }
-  }, [state.provider, state.address]);
-
-  const connect = async () => {
-    if (typeof window === "undefined" || !window.ethereum) {
-      updateState({ error: "MetaMask is not installed. Please install it to continue." });
+  // Convert wagmi connector client into an ethers v6 signer
+  useEffect(() => {
+    if (!connectorClient?.account) {
+      setSigner(null);
+      setProvider(null);
       return;
     }
+    const { account, chain, transport } = connectorClient;
+    const ethProvider = new ethers.BrowserProvider(transport, {
+      chainId: chain.id,
+      name: chain.name,
+    });
+    setProvider(ethProvider);
+    ethProvider
+      .getSigner(account.address)
+      .then(setSigner)
+      .catch(() => setSigner(null));
+  }, [connectorClient]);
 
-    updateState({ isConnecting: true, error: null });
+  const isCorrectNetwork = chainId != null && isArcTestnet(chainId);
 
-    try {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      await provider.send("eth_requestAccounts", []);
-      const signer = await provider.getSigner();
-      const address = await signer.getAddress();
-      const network = await provider.getNetwork();
-      const chainId = Number(network.chainId);
-      const balance = await provider.getBalance(address);
+  const formattedBalance = balanceData
+    ? ethers.formatUnits(balanceData.value, balanceData.decimals)
+    : null;
 
-      updateState({
-        provider,
-        signer,
-        address,
-        chainId,
-        balance: ethers.formatEther(balance),
-        isConnected: true,
-        isConnecting: false,
-        isCorrectNetwork: isArcTestnet(chainId),
-        error: null,
-      });
-    } catch (err: unknown) {
-      updateState({
-        isConnecting: false,
-        error: (err as Error).message || "Failed to connect wallet",
-      });
-    }
+  const connect = () => {
+    openConnectModal?.();
   };
 
   const disconnect = () => {
-    setState({
-      address: null,
-      balance: null,
-      chainId: null,
-      isConnected: false,
-      isConnecting: false,
-      isCorrectNetwork: false,
-      provider: null,
-      signer: null,
-      error: null,
-    });
+    wagmiDisconnect();
+    setSigner(null);
+    setProvider(null);
   };
 
   const switchNetwork = async () => {
-    const result = await switchToArcTestnet();
-    if (!result.success) {
-      updateState({ error: result.error || "Failed to switch network" });
-    } else {
-      // Wait for MetaMask to finish the switch before re-reading chain state
-      await new Promise((r) => setTimeout(r, 800));
-      try {
-        const provider = new ethers.BrowserProvider(window.ethereum!);
-        const signer = await provider.getSigner();
-        const address = await signer.getAddress();
-        const network = await provider.getNetwork();
-        const chainId = Number(network.chainId);
-        const balance = await provider.getBalance(address);
-        updateState({
-          provider,
-          signer,
-          address,
-          chainId,
-          balance: ethers.formatEther(balance),
-          isCorrectNetwork: isArcTestnet(chainId),
-          error: null,
-        });
-      } catch {
-        // chainChanged listener will handle state update as fallback
+    try {
+      switchChain({ chainId: ARC_TESTNET.chainIdDecimal });
+    } catch {
+      const result = await switchToArcTestnet();
+      if (!result.success) {
+        setError(result.error || "Failed to switch network");
       }
     }
   };
 
-  useEffect(() => {
-    if (typeof window === "undefined" || !window.ethereum) return;
+  const refreshBalance = async () => {
+    await refetchBalance();
+  };
 
-    const handleAccountsChanged = async (accounts: string[]) => {
-      if (accounts.length === 0) {
-        disconnect();
-      } else if (state.isConnected) {
-        updateState({ address: accounts[0] });
-        await refreshBalance();
-      }
-    };
-
-    const handleChainChanged = (chainIdHex: string) => {
-      const chainId = parseInt(chainIdHex, 16);
-      updateState({
-        chainId,
-        isCorrectNetwork: isArcTestnet(chainId),
-      });
-    };
-
-    window.ethereum.on("accountsChanged", handleAccountsChanged);
-    window.ethereum.on("chainChanged", handleChainChanged);
-
-    return () => {
-      window.ethereum?.removeListener("accountsChanged", handleAccountsChanged);
-      window.ethereum?.removeListener("chainChanged", handleChainChanged);
-    };
-  }, [state.isConnected, refreshBalance]);
-
-  // Auto-connect if previously connected
-  useEffect(() => {
-    const autoConnect = async () => {
-      if (typeof window === "undefined" || !window.ethereum) return;
-      try {
-        const accounts = await window.ethereum.request({ method: "eth_accounts" }) as string[];
-        if (accounts.length > 0) {
-          await connect();
-        }
-      } catch {
-        // ignore
-      }
-    };
-    autoConnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const value: WalletContextType = {
+    address: address ?? null,
+    balance: formattedBalance,
+    chainId: chainId ?? null,
+    isConnected,
+    isConnecting,
+    isCorrectNetwork,
+    provider,
+    signer,
+    error,
+    connect,
+    disconnect,
+    switchNetwork,
+    refreshBalance,
+  };
 
   return (
-    <WalletContext.Provider
-      value={{ ...state, connect, disconnect, switchNetwork, refreshBalance }}
-    >
-      {children}
-    </WalletContext.Provider>
+    <WalletContext.Provider value={value}>{children}</WalletContext.Provider>
   );
+}
+
+export function WalletProvider({ children }: { children: ReactNode }) {
+  return <WalletBridge>{children}</WalletBridge>;
 }
 
 export function useWallet() {
   const ctx = useContext(WalletContext);
   if (!ctx) throw new Error("useWallet must be used inside WalletProvider");
   return ctx;
-}
-
-// Extend Window type for ethereum
-declare global {
-  interface Window {
-    ethereum?: {
-      request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-      on: (event: string, handler: (...args: unknown[]) => void) => void;
-      removeListener: (event: string, handler: (...args: unknown[]) => void) => void;
-    };
-  }
 }
