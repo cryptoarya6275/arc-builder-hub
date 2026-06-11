@@ -114,6 +114,29 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const result = await switchToArcTestnet();
     if (!result.success) {
       updateState({ error: result.error || "Failed to switch network" });
+    } else {
+      // Re-initialise provider/signer after network switch so balance & network
+      // state are fresh. The chainChanged event fires too, but it doesn't
+      // refresh the provider or balance.
+      try {
+        const provider = new ethers.BrowserProvider(window.ethereum!);
+        const signer = await provider.getSigner();
+        const address = await signer.getAddress();
+        const network = await provider.getNetwork();
+        const chainId = Number(network.chainId);
+        const balance = await provider.getBalance(address);
+        updateState({
+          provider,
+          signer,
+          address,
+          chainId,
+          balance: ethers.formatEther(balance),
+          isCorrectNetwork: isArcTestnet(chainId),
+          error: null,
+        });
+      } catch {
+        // fallback: chainChanged listener will handle state update
+      }
     }
   };
 
