@@ -57,7 +57,7 @@ export default function WalletDashboard() {
             Wallet Dashboard
           </h2>
           <p className="text-dark-400 mt-2">
-            Connect your MetaMask and manage your Arc Testnet account.
+            Connect your wallet and manage your Arc Testnet account.
           </p>
         </div>
 
