@@ -1,8 +1,8 @@
 // src/lib/arcNetwork.ts
 
 export const ARC_TESTNET = {
-  chainId: "0x4CE012", // as specified by Arc Testnet
-  chainIdDecimal: 5042002,
+  chainId: "0x4CE012", // 5038098 decimal
+  chainIdDecimal: 5038098,
   chainName: "Arc Testnet",
   rpcUrls: ["https://rpc.testnet.arc.network"],
   nativeCurrency: {
