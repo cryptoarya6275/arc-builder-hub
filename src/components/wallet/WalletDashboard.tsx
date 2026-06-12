@@ -1,22 +1,19 @@
 // src/components/wallet/WalletDashboard.tsx
 "use client";
 
-import { useWallet } from "@/lib/walletContext";
-import { shortenAddress, getExplorerAddressUrl, ARC_TESTNET } from "@/lib/arcNetwork";
 import { useState } from "react";
+import { useAccount, useBalance, useChainId, useDisconnect, useSwitchChain } from "wagmi";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { shortenAddress, getExplorerAddressUrl, ARC_TESTNET, isArcTestnet } from "@/lib/arcNetwork";
+import { arcTestnetChain } from "@/lib/wagmiConfig";
 
 export default function WalletDashboard() {
-  const {
-    address,
-    balance,
-    chainId,
-    isConnected,
-    isCorrectNetwork,
-    connect,
-    disconnect,
-    switchNetwork,
-    refreshBalance,
-  } = useWallet();
+  const { address, isConnected } = useAccount();
+  const { data: balanceData, refetch: refetchBalance } = useBalance({ address });
+  const chainId = useChainId();
+  const { disconnect } = useDisconnect();
+  const { switchChain } = useSwitchChain();
+  const isCorrectNetwork = isArcTestnet(chainId);
 
   const [copied, setCopied] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -30,13 +27,17 @@ export default function WalletDashboard() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await refreshBalance();
+    await refetchBalance();
     setTimeout(() => setRefreshing(false), 600);
   };
 
-  const formatBalance = (bal: string | null) => {
-    if (!bal) return "—";
-    const num = parseFloat(bal);
+  const handleSwitchNetwork = () => {
+    switchChain({ chainId: arcTestnetChain.id });
+  };
+
+  const formatBalance = (formatted: string | undefined) => {
+    if (!formatted) return "—";
+    const num = parseFloat(formatted);
     if (num === 0) return "0.0000";
     if (num < 0.0001) return "< 0.0001";
     return num.toFixed(4);
@@ -62,7 +63,6 @@ export default function WalletDashboard() {
         </div>
 
         {!isConnected ? (
-          /* Not connected */
           <div className="arc-card p-10 text-center">
             <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-arc-400/10 flex items-center justify-center">
               <svg className="w-8 h-8 text-arc-400/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -74,11 +74,9 @@ export default function WalletDashboard() {
               No Wallet Connected
             </h3>
             <p className="text-dark-400 text-sm mb-6">
-              Connect your MetaMask wallet to view your balance and use the tools.
+              Connect your wallet to view your balance and use the tools.
             </p>
-            <button onClick={connect} className="arc-button-primary">
-              Connect MetaMask
-            </button>
+            <ConnectButton />
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -132,7 +130,7 @@ export default function WalletDashboard() {
                 </a>
 
                 <button
-                  onClick={disconnect}
+                  onClick={() => disconnect()}
                   className="text-sm py-2 px-4 flex items-center gap-2 rounded-lg border border-red-500/20 text-red-400/70 hover:text-red-400 hover:border-red-500/40 transition-colors"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -148,9 +146,11 @@ export default function WalletDashboard() {
               <span className="arc-label">Balance</span>
               <div className="flex items-baseline gap-2 mt-2">
                 <span className="font-display text-3xl font-bold text-arc-50 glow-text">
-                  {formatBalance(balance)}
+                  {formatBalance(balanceData?.formatted)}
                 </span>
-                <span className="text-arc-400 font-mono text-sm">USDC</span>
+                <span className="text-arc-400 font-mono text-sm">
+                  {balanceData?.symbol ?? "USDC"}
+                </span>
               </div>
               <div className="mt-4 pt-4 border-t border-dark-700/50">
                 <button
@@ -187,7 +187,7 @@ export default function WalletDashboard() {
                         Connected to Arc Testnet
                       </div>
                       <div className="font-mono text-xs text-dark-500 mt-0.5">
-                        Chain ID: {ARC_TESTNET.chainIdDecimal} · {ARC_TESTNET.rpcUrls[0]}
+                        Chain ID: {arcTestnetChain.id} · {ARC_TESTNET.rpcUrls[0]}
                       </div>
                     </div>
                   </div>
@@ -208,12 +208,12 @@ export default function WalletDashboard() {
                         Wrong Network
                       </div>
                       <div className="font-mono text-xs text-dark-500 mt-0.5">
-                        Current Chain ID: {chainId} · Switch to Arc Testnet ({ARC_TESTNET.chainIdDecimal})
+                        Current Chain ID: {chainId} · Switch to Arc Testnet ({arcTestnetChain.id})
                       </div>
                     </div>
                   </div>
                   <button
-                    onClick={switchNetwork}
+                    onClick={handleSwitchNetwork}
                     className="arc-button-primary text-sm py-2 px-5 whitespace-nowrap"
                   >
                     Switch to Arc Testnet
