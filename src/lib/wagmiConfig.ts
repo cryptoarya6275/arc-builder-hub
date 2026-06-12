@@ -10,11 +10,18 @@ import {
 } from "@rainbow-me/rainbowkit/wallets";
 
 export const arcTestnetChain = defineChain({
-  id: 5038098,
+  id: 5042002,
   name: "Arc Testnet",
   nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 },
   rpcUrls: {
-    default: { http: ["https://rpc.testnet.arc.network"] },
+    default: {
+      http: [
+        "https://rpc.testnet.arc.network",
+        "https://rpc.drpc.testnet.arc.network",
+        "https://rpc.quicknode.testnet.arc.network",
+        "https://rpc.blockdaemon.testnet.arc.network",
+      ],
+    },
   },
   blockExplorers: {
     default: { name: "ArcScan", url: "https://testnet.arcscan.app" },
@@ -22,8 +29,6 @@ export const arcTestnetChain = defineChain({
   testnet: true,
 });
 
-// Requires NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID for WalletConnect (Trust Wallet QR, etc.)
-// Injected wallets (MetaMask, Rabby, OKX, Coinbase) work without it.
 const projectId =
   process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "placeholder";
 
