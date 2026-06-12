@@ -1,12 +1,10 @@
 // src/lib/arcNetwork.ts
 
-// Arc Testnet accepts both chain ID representations
-// 0x4CE012 = 5038098 | 0x4CEF52 = 5042002
-export const ARC_CHAIN_IDS = [5038098, 5042002];
+export const ARC_CHAIN_IDS = [5042002, 5038098];
 
 export const ARC_TESTNET = {
-  chainId: "0x4CE012",
-  chainIdDecimal: 5038098,
+  chainId: "0x4CEF52",
+  chainIdDecimal: 5042002,
   chainName: "Arc Testnet",
   rpcUrls: ["https://rpc.testnet.arc.network"],
   nativeCurrency: {
@@ -19,7 +17,7 @@ export const ARC_TESTNET = {
 
 export async function switchToArcTestnet(): Promise<{ success: boolean; error?: string }> {
   if (!window.ethereum) {
-    return { success: false, error: "MetaMask not detected" };
+    return { success: false, error: "No wallet detected" };
   }
 
   try {
