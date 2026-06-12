@@ -2,11 +2,12 @@
 "use client";
 
 import { useState } from "react";
-import { useWallet } from "@/lib/walletContext";
+import { useAccount } from "wagmi";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { ARC_TESTNET, switchToArcTestnet } from "@/lib/arcNetwork";
 
 export default function Hero() {
-  const { isConnected, connect, isConnecting } = useWallet();
+  const { isConnected } = useAccount();
   const [addingNetwork, setAddingNetwork] = useState(false);
   const [networkAdded, setNetworkAdded] = useState(false);
 
@@ -95,29 +96,33 @@ export default function Hero() {
         {/* CTA */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-slide-up" style={{ animationDelay: "0.2s" }}>
           {!isConnected ? (
-            <button
-              onClick={connect}
-              disabled={isConnecting}
-              className="arc-button-primary text-base px-8 py-4 glow-border"
-            >
-              {isConnecting ? (
-                <span className="flex items-center gap-2">
-                  <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Connecting...
-                </span>
-              ) : (
-                <span className="flex items-center gap-2">
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-                    <path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16" />
-                  </svg>
-                  Connect Wallet
-                </span>
+            <ConnectButton.Custom>
+              {({ openConnectModal, connectModalOpen }) => (
+                <button
+                  onClick={openConnectModal}
+                  disabled={connectModalOpen}
+                  className="arc-button-primary text-base px-8 py-4 glow-border"
+                >
+                  {connectModalOpen ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Connecting...
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                        <path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16" />
+                      </svg>
+                      Connect Wallet
+                    </span>
+                  )}
+                </button>
               )}
-            </button>
+            </ConnectButton.Custom>
           ) : (
             <a
               href="#dashboard"
