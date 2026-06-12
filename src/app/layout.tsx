@@ -1,7 +1,7 @@
 // src/app/layout.tsx
 import type { Metadata } from "next";
 import "./globals.css";
-import { Web3Provider } from "@/lib/Web3Provider";
+import { Providers } from "@/lib/Providers";
 
 export const metadata: Metadata = {
   title: "Arc Builder Hub — Testnet Toolkit",
@@ -23,7 +23,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className="noise min-h-screen">
-        <Web3Provider>{children}</Web3Provider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
