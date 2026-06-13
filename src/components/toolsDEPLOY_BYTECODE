@@ -7,7 +7,7 @@ import { useAccount, useChainId, useSwitchChain, useWalletClient } from "wagmi";
 import { BrowserProvider, JsonRpcSigner } from "ethers";
 import { getExplorerAddressUrl, getExplorerTxUrl, isArcTestnet } from "@/lib/arcNetwork";
 import { arcTestnetChain } from "@/lib/wagmiConfig";
-import { SIMPLE_ERC20_ABI, SIMPLE_ERC20_BYTECODE } from "@/lib/erc20";
+import { SIMPLE_ERC20_ABI } from "@/lib/erc20";
 
 // Pre-compiled minimal ERC20 bytecode (safe, standard, deploys on any EVM)
 // Source: Standard OpenZeppelin ERC20 compiled with solc 0.8.20
@@ -69,7 +69,11 @@ export default function ERC20Deployer() {
 
     try {
       const supplyWei = ethers.parseUnits(form.supply, 18);
-      const factory = new ethers.ContractFactory(SIMPLE_ERC20_ABI, SIMPLE_ERC20_BYTECODE, signer);
+      const factory = new ethers.ContractFactory(
+  SIMPLE_ERC20_ABI,
+  DEPLOY_BYTECODE,
+  signer
+);
       // Provide explicit gasLimit to bypass eth_estimateGas (Arc Testnet RPC returns null)
       const contract = await factory.deploy(form.name.trim(), form.symbol.trim().toUpperCase(), supplyWei, {
         gasLimit: 3_000_000,
