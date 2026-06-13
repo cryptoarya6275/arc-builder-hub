@@ -7,12 +7,12 @@ import { useAccount, useChainId, useSwitchChain, useWalletClient } from "wagmi";
 import { BrowserProvider, JsonRpcSigner } from "ethers";
 import { getExplorerAddressUrl, getExplorerTxUrl, isArcTestnet } from "@/lib/arcNetwork";
 import { arcTestnetChain } from "@/lib/wagmiConfig";
-import { SIMPLE_ERC20_ABI, SIMPLE_ERC20_BYTECODE } from "@/lib/erc20";
+import { SIMPLE_ERC20_ABI } from "@/lib/erc20";
 
 // Pre-compiled minimal ERC20 bytecode (safe, standard, deploys on any EVM)
 // Source: Standard OpenZeppelin ERC20 compiled with solc 0.8.20
 const DEPLOY_BYTECODE =
-  "0x608060405234801561001057600080fd5b506040516109e43803806109e483398181016040528101906100329190610232565b828282600390816100439190610498565b5081600490816100539190610498565b50505061007033826100686[...]
+  "0x608060405234801561001057600080fd5b506040516109e43803806109e483398181016040528101906100329190610232565b828282600390816100439190610498565b5081600490816100539190610498565b50505061007033826100686[...[...]
 
 interface DeployState {
   status: "idle" | "deploying" | "success" | "error";
@@ -64,33 +64,36 @@ export default function ERC20Deployer() {
 
   const handleDeploy = async () => {
     if (!signer || !isFormValid) return;
-
     setDeploy({ status: "deploying" });
-
     try {
       const supplyWei = ethers.parseUnits(form.supply, 18);
-      const factory = new ethers.ContractFactory(SIMPLE_ERC20_ABI, SIMPLE_ERC20_BYTECODE, signer);
-      // Provide explicit gasLimit to bypass eth_estimateGas (Arc Testnet RPC returns null)
-      const contract = await factory.deploy(form.name.trim(), form.symbol.trim().toUpperCase(), supplyWei, {
-        gasLimit: 3_000_000,
-      });
+      const abi = [
+        "constructor(string name_, string symbol_, uint256 initialSupply_)",
+        "function name() view returns (string)",
+        "function symbol() view returns (string)",
+        "function decimals() view returns (uint8)",
+        "function totalSupply() view returns (uint256)",
+        "function balanceOf(address) view returns (uint256)",
+        "function transfer(address to, uint256 amount) returns (bool)",
+      ];
+      const bytecode = "0x60806040523480156200001157600080fd5b5060405162000b2238038062000b228339810160408190526200003491620001e0565b82516200004990600390602086019062000068565b5081516200005f906004906020[...]
+
+      const factory = new ethers.ContractFactory(abi, bytecode, signer);
+      const contract = await factory.deploy(
+        form.name.trim(),
+        form.symbol.trim().toUpperCase(),
+        supplyWei,
+        {
+          gasLimit: 3_000_000,
+        }
+      );
       const tx = contract.deploymentTransaction();
-
-      setDeploy({
-        status: "deploying",
-        txHash: tx?.hash,
-      });
-
+      setDeploy({ status: "deploying", txHash: tx?.hash });
       await contract.waitForDeployment();
       const address = await contract.getAddress();
-
-      setDeploy({
-        status: "success",
-        txHash: tx?.hash,
-        contractAddress: address,
-      });
+      setDeploy({ status: "success", txHash: tx?.hash, contractAddress: address });
     } catch (err: unknown) {
-      const error = err as { message?: string; reason?: string; code?: string };
+      const error = err as { message?: string; code?: string };
       let msg = error.message || "Deployment failed";
       if (error.code === "ACTION_REJECTED") msg = "Transaction rejected by user.";
       if (msg.length > 120) msg = msg.slice(0, 120) + "…";
