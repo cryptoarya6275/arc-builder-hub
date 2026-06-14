@@ -1,25 +1,30 @@
 "use client";
 
 import { useState } from "react";
-import { parseUnits } from "viem";
+import { parseUnits, formatUnits } from "viem";
 import {
   useAccount,
   useChainId,
-  useSwitchChain,
+  useBalance,
   useDeployContract,
   useWaitForTransactionReceipt,
 } from "wagmi";
-import { getExplorerAddressUrl, getExplorerTxUrl, isArcTestnet } from "@/lib/arcNetwork";
-import { arcTestnetChain } from "@/lib/wagmiConfig";
+import { getExplorerAddressUrl, getExplorerTxUrl, isArcTestnet, switchToArcTestnet } from "@/lib/arcNetwork";
 import { SIMPLE_ERC20_ABI, SIMPLE_ERC20_BYTECODE } from "@/lib/erc20";
 
+const DEPLOY_GAS_LIMIT = 3_500_000n;
+
 export default function ERC20Deployer() {
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
   const chainId = useChainId();
   const isCorrectNetwork = isArcTestnet(chainId);
-  const { switchChain } = useSwitchChain();
+
+  const { data: balanceData } = useBalance({ address, query: { enabled: !!address && isCorrectNetwork } });
+  const hasBalance = balanceData ? balanceData.value > 0n : null;
 
   const [form, setForm] = useState({ name: "", symbol: "", supply: "" });
+  const [switchError, setSwitchError] = useState<string | null>(null);
+  const [switching, setSwitching] = useState(false);
 
   const {
     deployContract,
@@ -29,10 +34,7 @@ export default function ERC20Deployer() {
     reset: resetDeploy,
   } = useDeployContract();
 
-  const {
-    data: receipt,
-    isLoading: isConfirming,
-  } = useWaitForTransactionReceipt({ hash: txHash });
+  const { data: receipt, isLoading: isConfirming } = useWaitForTransactionReceipt({ hash: txHash });
 
   const isDeploying = isPending || isConfirming;
   const isSuccess = !!receipt;
@@ -48,6 +50,14 @@ export default function ERC20Deployer() {
     /^\d+(\.\d+)?$/.test(form.supply) &&
     parseFloat(form.supply) > 0;
 
+  const handleSwitchChain = async () => {
+    setSwitchError(null);
+    setSwitching(true);
+    const result = await switchToArcTestnet();
+    setSwitching(false);
+    if (!result.success) setSwitchError(result.error ?? "Failed to switch network");
+  };
+
   const handleDeploy = () => {
     if (!isFormValid) return;
     const supplyWei = parseUnits(form.supply, 18);
@@ -55,24 +65,27 @@ export default function ERC20Deployer() {
       abi: SIMPLE_ERC20_ABI,
       bytecode: SIMPLE_ERC20_BYTECODE,
       args: [form.name.trim(), form.symbol.trim().toUpperCase(), supplyWei],
+      gas: DEPLOY_GAS_LIMIT,
     });
   };
 
   const reset = () => {
     resetDeploy();
+    setSwitchError(null);
     setForm({ name: "", symbol: "", supply: "" });
   };
 
   const errorMsg = deployError
-    ? (deployError as { shortMessage?: string }).shortMessage ||
-      deployError.message?.slice(0, 120) ||
-      "Deployment failed"
+    ? (() => {
+        const e = deployError as { shortMessage?: string; message?: string; code?: string };
+        if (e.code === "ACTION_REJECTED" || e.message?.includes("rejected")) return "Transaction rejected by user.";
+        return e.shortMessage || e.message?.slice(0, 140) || "Deployment failed";
+      })()
     : null;
 
   return (
     <section id="deployer" className="py-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto">
-        {/* Section header */}
         <div className="mb-10">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-px h-8 bg-arc-400/40" />
@@ -102,63 +115,41 @@ export default function ERC20Deployer() {
             </div>
 
             <div className="space-y-5">
-              {/* Token Name */}
               <div>
                 <label className="arc-label" htmlFor="name">Token Name</label>
                 <input
-                  id="name"
-                  name="name"
-                  type="text"
-                  value={form.name}
-                  onChange={handleInput}
+                  id="name" name="name" type="text"
+                  value={form.name} onChange={handleInput}
                   placeholder="e.g. My Arc Token"
-                  className="arc-input"
-                  disabled={isDeploying}
-                  maxLength={64}
+                  className="arc-input" disabled={isDeploying} maxLength={64}
                 />
               </div>
 
-              {/* Token Symbol */}
               <div>
                 <label className="arc-label" htmlFor="symbol">Token Symbol</label>
                 <input
-                  id="symbol"
-                  name="symbol"
-                  type="text"
-                  value={form.symbol}
-                  onChange={handleInput}
+                  id="symbol" name="symbol" type="text"
+                  value={form.symbol} onChange={handleInput}
                   placeholder="e.g. MAT"
-                  className="arc-input uppercase"
-                  disabled={isDeploying}
-                  maxLength={10}
+                  className="arc-input uppercase" disabled={isDeploying} maxLength={10}
                 />
-                <p className="mt-1 text-xs font-mono text-dark-600">
-                  Will be uppercased automatically. Max 10 characters.
-                </p>
+                <p className="mt-1 text-xs font-mono text-dark-600">Will be uppercased automatically. Max 10 characters.</p>
               </div>
 
-              {/* Initial Supply */}
               <div>
                 <label className="arc-label" htmlFor="supply">Initial Supply</label>
                 <div className="relative">
                   <input
-                    id="supply"
-                    name="supply"
-                    type="text"
-                    inputMode="decimal"
-                    value={form.supply}
-                    onChange={handleInput}
+                    id="supply" name="supply" type="text" inputMode="decimal"
+                    value={form.supply} onChange={handleInput}
                     placeholder="e.g. 1000000"
-                    className="arc-input pr-20"
-                    disabled={isDeploying}
+                    className="arc-input pr-20" disabled={isDeploying}
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-mono text-dark-500">
                     {form.symbol ? form.symbol.toUpperCase() : "tokens"}
                   </span>
                 </div>
-                <p className="mt-1 text-xs font-mono text-dark-600">
-                  Decimals: 18. Minted to your wallet on deploy.
-                </p>
+                <p className="mt-1 text-xs font-mono text-dark-600">Decimals: 18. Minted to your wallet on deploy.</p>
               </div>
 
               {/* Action button */}
@@ -167,12 +158,30 @@ export default function ERC20Deployer() {
                   <p className="text-sm text-dark-400">Connect your wallet to deploy.</p>
                 </div>
               ) : !isCorrectNetwork ? (
-                <button
-                  onClick={() => switchChain({ chainId: arcTestnetChain.id })}
-                  className="w-full arc-button-primary py-4 bg-amber-500 hover:bg-amber-400 text-dark-950"
-                >
-                  Switch to Arc Testnet First
-                </button>
+                <div className="space-y-2">
+                  <button
+                    onClick={handleSwitchChain}
+                    disabled={switching}
+                    className="w-full arc-button-primary py-4 bg-amber-500 hover:bg-amber-400 text-dark-950 flex items-center justify-center gap-2"
+                  >
+                    {switching && (
+                      <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                    )}
+                    {switching ? "Switching…" : "Switch to Arc Testnet"}
+                  </button>
+                  {switchError && (
+                    <p className="text-xs font-mono text-red-400/80 text-center">{switchError}</p>
+                  )}
+                </div>
+              ) : hasBalance === false ? (
+                <div className="arc-card p-4 text-center bg-dark-900/80 border border-amber-500/20">
+                  <p className="text-sm text-amber-400/80">
+                    Your wallet has 0 USDC. Get testnet funds from the Arc faucet before deploying.
+                  </p>
+                </div>
               ) : isDeploying ? (
                 <button disabled className="w-full arc-button-primary py-4 flex items-center justify-center gap-3">
                   <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none">
@@ -200,55 +209,45 @@ export default function ERC20Deployer() {
             </div>
           </div>
 
-          {/* Status / Preview panel */}
+          {/* Side panel */}
           <div className="lg:col-span-2 space-y-4">
-            {/* Preview */}
+            {/* Token Preview */}
             <div className="arc-card p-5">
-              <h4 className="font-display text-xs text-arc-400/70 uppercase tracking-widest mb-4">
-                Token Preview
-              </h4>
+              <h4 className="font-display text-xs text-arc-400/70 uppercase tracking-widest mb-4">Token Preview</h4>
               <div className="space-y-3">
-                <div className="flex justify-between items-center py-2 border-b border-dark-800">
-                  <span className="text-xs font-mono text-dark-500">Name</span>
-                  <span className="text-sm font-mono text-arc-100">{form.name || "—"}</span>
-                </div>
-                <div className="flex justify-between items-center py-2 border-b border-dark-800">
-                  <span className="text-xs font-mono text-dark-500">Symbol</span>
-                  <span className="text-sm font-mono text-arc-400 font-bold">
-                    {form.symbol ? form.symbol.toUpperCase() : "—"}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center py-2 border-b border-dark-800">
-                  <span className="text-xs font-mono text-dark-500">Supply</span>
-                  <span className="text-sm font-mono text-arc-100">
-                    {form.supply ? parseFloat(form.supply).toLocaleString() : "—"}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center py-2 border-b border-dark-800">
-                  <span className="text-xs font-mono text-dark-500">Decimals</span>
-                  <span className="text-sm font-mono text-arc-100">18</span>
-                </div>
-                <div className="flex justify-between items-center py-2">
-                  <span className="text-xs font-mono text-dark-500">Standard</span>
-                  <span className="text-sm font-mono text-arc-100">ERC-20</span>
-                </div>
+                {[
+                  { label: "Name", value: form.name || "—" },
+                  { label: "Symbol", value: form.symbol ? form.symbol.toUpperCase() : "—", accent: true },
+                  { label: "Supply", value: form.supply ? parseFloat(form.supply).toLocaleString() : "—" },
+                  { label: "Decimals", value: "18" },
+                  { label: "Standard", value: "ERC-20" },
+                ].map(({ label, value, accent }, i, arr) => (
+                  <div key={label} className={`flex justify-between items-center py-2 ${i < arr.length - 1 ? "border-b border-dark-800" : ""}`}>
+                    <span className="text-xs font-mono text-dark-500">{label}</span>
+                    <span className={`text-sm font-mono ${accent ? "text-arc-400 font-bold" : "text-arc-100"}`}>{value}</span>
+                  </div>
+                ))}
               </div>
             </div>
 
+            {/* Balance indicator */}
+            {isConnected && isCorrectNetwork && balanceData && (
+              <div className="arc-card p-4 flex items-center justify-between">
+                <span className="text-xs font-mono text-dark-500">Wallet balance</span>
+                <span className={`text-xs font-mono ${hasBalance ? "text-arc-400" : "text-amber-400"}`}>
+                  {parseFloat(formatUnits(balanceData.value, balanceData.decimals)).toFixed(4)} {balanceData.symbol}
+                </span>
+              </div>
+            )}
+
             {/* Deployment Status */}
             {(isDeploying || isSuccess || deployError) && (
-              <div
-                className={`arc-card p-5 animate-slide-up ${
-                  isSuccess
-                    ? "border-green-500/30 bg-green-500/5"
-                    : deployError
-                    ? "border-red-500/30 bg-red-500/5"
-                    : "border-arc-400/20"
-                }`}
-              >
-                <h4 className="font-display text-xs uppercase tracking-widest mb-3 text-dark-500">
-                  Deployment Status
-                </h4>
+              <div className={`arc-card p-5 animate-slide-up ${
+                isSuccess ? "border-green-500/30 bg-green-500/5"
+                : deployError ? "border-red-500/30 bg-red-500/5"
+                : "border-arc-400/20"
+              }`}>
+                <h4 className="font-display text-xs uppercase tracking-widest mb-3 text-dark-500">Deployment Status</h4>
 
                 {isDeploying && (
                   <div className="space-y-3">
@@ -264,12 +263,8 @@ export default function ERC20Deployer() {
                     {txHash && (
                       <div>
                         <span className="text-xs font-mono text-dark-500">TX Hash:</span>
-                        <a
-                          href={getExplorerTxUrl(txHash)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block text-xs font-mono text-arc-400 hover:text-arc-300 break-all mt-1"
-                        >
+                        <a href={getExplorerTxUrl(txHash)} target="_blank" rel="noopener noreferrer"
+                          className="block text-xs font-mono text-arc-400 hover:text-arc-300 break-all mt-1">
                           {txHash}
                         </a>
                       </div>
@@ -288,12 +283,8 @@ export default function ERC20Deployer() {
                     {contractAddress && (
                       <div>
                         <span className="text-xs font-mono text-dark-500">Contract Address:</span>
-                        <a
-                          href={getExplorerAddressUrl(contractAddress)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block text-xs font-mono text-green-400 hover:text-green-300 break-all mt-1"
-                        >
+                        <a href={getExplorerAddressUrl(contractAddress)} target="_blank" rel="noopener noreferrer"
+                          className="block text-xs font-mono text-green-400 hover:text-green-300 break-all mt-1">
                           {contractAddress} ↗
                         </a>
                       </div>
@@ -301,12 +292,8 @@ export default function ERC20Deployer() {
                     {txHash && (
                       <div>
                         <span className="text-xs font-mono text-dark-500">Transaction:</span>
-                        <a
-                          href={getExplorerTxUrl(txHash)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block text-xs font-mono text-dark-400 hover:text-arc-400 break-all mt-1"
-                        >
+                        <a href={getExplorerTxUrl(txHash)} target="_blank" rel="noopener noreferrer"
+                          className="block text-xs font-mono text-dark-400 hover:text-arc-400 break-all mt-1">
                           {txHash} ↗
                         </a>
                       </div>
@@ -325,10 +312,8 @@ export default function ERC20Deployer() {
                       <span className="font-display font-bold">Deployment Failed</span>
                     </div>
                     <p className="text-xs font-mono text-red-400/70 break-all">{errorMsg}</p>
-                    <button
-                      onClick={() => resetDeploy()}
-                      className="text-xs font-display text-dark-500 hover:text-arc-400 transition-colors"
-                    >
+                    <button onClick={() => resetDeploy()}
+                      className="text-xs font-display text-dark-500 hover:text-arc-400 transition-colors">
                       Try again →
                     </button>
                   </div>

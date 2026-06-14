@@ -390,8 +390,8 @@ importers:
         specifier: ^2.15.2
         version: 2.15.4(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       solc:
-        specifier: 0.8.20
-        version: 0.8.20
+        specifier: 0.8.24
+        version: 0.8.24
       sonner:
         specifier: ^2.0.7
         version: 2.0.7(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -4446,8 +4446,8 @@ packages:
     resolution: {integrity: sha512-asJqbVBDsBCJx0pTqw3WfesSY0iRX+2xzWEWzrpcH7L6fLzrhyF8WPI8UaeM4YCuDfpwA/cgsdugMsmtz8EJeg==}
     engines: {node: '>=10.0.0'}
 
-  solc@0.8.20:
-    resolution: {integrity: sha512-fPRnGspIEqmhu63RFO3pc79sLA7ZmzO0Uy0L5l6hEt2wAsq0o7UV6pXkAp3Mfv9IBhg7Px/oTu3a+y4gs3BWrQ==}
+  solc@0.8.24:
+    resolution: {integrity: sha512-G5yUqjTUPc8Np74sCFwfsevhBPlUifUOfhYrgyu6CmYlC6feSw0YS6eZW47XDT23k3JYdKx5nJ+Q7whCEmNcoA==}
     engines: {node: '>=10.0.0'}
     hasBin: true
 
@@ -9911,7 +9911,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  solc@0.8.20:
+  solc@0.8.24:
     dependencies:
       command-exists: 1.2.9
       commander: 8.3.0
