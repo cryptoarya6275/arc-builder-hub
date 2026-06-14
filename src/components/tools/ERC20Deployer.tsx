@@ -58,33 +58,40 @@ export default function ERC20Deployer() {
     parseFloat(form.supply) > 0;
 
   const handleDeploy = async () => {
-    if (!signer || !isFormValid) return;
-    setDeploy({ status: "deploying" });
-    try {
-      const supplyWei = ethers.parseUnits(form.supply, 18);
+  if (!signer || !isFormValid) return;
+  setDeploy({ status: "deploying" });
+  try {
+    const supplyWei = ethers.parseUnits(form.supply, 18);
+    const abi = [
+      "constructor(string name_, string symbol_, uint256 initialSupply_)",
+      "function name() view returns (string)",
+      "function symbol() view returns (string)",
+      "function decimals() view returns (uint8)",
+      "function totalSupply() view returns (uint256)",
+      "function balanceOf(address) view returns (uint256)",
+      "function transfer(address to, uint256 amount) returns (bool)",
+    ];
+    const bytecode = "0x60806040523480156200001157600080fd5b5060405162000b2238038062000b228339810160408190526200003491620001e0565b82516200004990600390602086019062000068565b5081516200005f90600490602085019062000068565b505050620002b6565b828054620000769062000279565b90600052602060002090601f0160209004810192826200009a5760008555620000e5565b82601f10620000b557805160ff1916838001178555620000e5565b82800160010185558215620000e5579182015b82811115620000e5578251825591602001919060010190620000c8565b50620000f3929150620000f7565b5090565b5b80821115620000f35760008155600101620000f8565b634e487b7160e01b600052604160045260246000fd5b600082601f8301126200013657600080fd5b81516001600160401b038082111562000153576200015362000110565b604051601f8301601f19908116603f011681019082821181831017156200017e576200017e62000110565b816040528381526020925086838588010111156200019b57600080fd5b600091505b83821015620001bf5785820183015181830184015290820190620001a0565b83821115620001d15760008385830101525b9695505050505050565b600080600060608486031215620001f657600080fd5b83516001600160401b03808211156200020e57600080fd5b6200021c8783880162000124565b945060208601519150808211156200023357600080fd5b506200024286828701620001249050565b925050604084015190509250925092565b6001600160a01b038216620002755760405163ec442f0560e01b815260006004820152602401604051809103fd5b62000283600083836200028757565b5050565b6001600160a01b038316620002a55750806002819055505050565b62000283838383620002b1565b505050565b62000283828284620002d456fe";
 
-      const factory = new ethers.ContractFactory(SIMPLE_ERC20_ABI, SIMPLE_ERC20_BYTECODE, signer);
-      const contract = await factory.deploy(
-        form.name.trim(),
-        form.symbol.trim().toUpperCase(),
-        supplyWei,
-        {
-          gasLimit: 3_000_000,
-        }
-      );
-      const tx = contract.deploymentTransaction();
-      setDeploy({ status: "deploying", txHash: tx?.hash });
-      await contract.waitForDeployment();
-      const address = await contract.getAddress();
-      setDeploy({ status: "success", txHash: tx?.hash, contractAddress: address });
-    } catch (err: unknown) {
-      const error = err as { message?: string; code?: string };
-      let msg = error.message || "Deployment failed";
-      if (error.code === "ACTION_REJECTED") msg = "Transaction rejected by user.";
-      if (msg.length > 120) msg = msg.slice(0, 120) + "…";
-      setDeploy({ status: "error", error: msg });
-    }
-  };
+    const factory = new ethers.ContractFactory(abi, bytecode, signer);
+    const contract = await factory.deploy(
+      form.name.trim(),
+      form.symbol.trim().toUpperCase(),
+      supplyWei
+    );
+    const tx = contract.deploymentTransaction();
+    setDeploy({ status: "deploying", txHash: tx?.hash });
+    await contract.waitForDeployment();
+    const address = await contract.getAddress();
+    setDeploy({ status: "success", txHash: tx?.hash, contractAddress: address });
+  } catch (err: unknown) {
+    const error = err as { message?: string; code?: string };
+    let msg = error.message || "Deployment failed";
+    if (error.code === "ACTION_REJECTED") msg = "Transaction rejected by user.";
+    if (msg.length > 120) msg = msg.slice(0, 120) + "…";
+    setDeploy({ status: "error", error: msg });
+  }
+};
 
   const reset = () => {
     setDeploy({ status: "idle" });
