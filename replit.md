@@ -1,6 +1,6 @@
-# [Project name]
+# Arc Builder Hub
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A Web3 toolkit for builders on the Arc Layer 1 testnet. Connect your wallet, deploy ERC20 tokens, and explore the Arc ecosystem — all from one place.
 
 ## Run & Operate
 
@@ -10,27 +10,45 @@ _Replace the heading above with the project's name, and this line with one sente
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - Required env: `DATABASE_URL` — Postgres connection string
+- Optional env: `VITE_WALLETCONNECT_PROJECT_ID` — WalletConnect project ID (falls back to "placeholder")
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
+- Frontend: React + Vite (`artifacts/arc-builder-hub/`)
+- API: Express 5 (`artifacts/api-server/`)
 - DB: PostgreSQL + Drizzle ORM
+- Web3: wagmi v2, viem, ethers v6, RainbowKit v2
 - Validation: Zod (`zod/v4`), `drizzle-zod`
 - API codegen: Orval (from OpenAPI spec)
 - Build: esbuild (CJS bundle)
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/arc-builder-hub/src/` — React frontend
+  - `src/components/ui/` — Navbar, Hero, Footer, ComingSoon
+  - `src/components/wallet/` — WalletDashboard
+  - `src/components/tools/` — ERC20Deployer
+  - `src/lib/` — wagmiConfig, Providers, arcNetwork, walletContext, erc20
+- `artifacts/api-server/` — Express backend (minimal, no DB routes needed)
+- `lib/db/src/schema/` — Drizzle schema (empty, no DB used by this app)
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Pure client-side app; no API routes needed (all Web3 calls go direct to RPC)
+- wagmi v2 + RainbowKit v2 for wallet connection
+- Arc Testnet chain ID 5042002, native currency USDC
+- `ssr: false` in wagmiConfig (Vite CSR, not Next.js SSR)
+- NEXT_PUBLIC_ env vars replaced with VITE_ prefix
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+Users can:
+1. Connect their Web3 wallet (MetaMask, Rabby, Coinbase, OKX, Trust)
+2. View their Arc Testnet wallet balance and address
+3. Deploy ERC20 tokens to Arc Testnet in seconds
+4. Add Arc Testnet to their wallet with one click
+5. See the roadmap of coming tools (NFT Minter, Faucet Checker, Contract Interaction, Multi-Send)
 
 ## User preferences
 
@@ -38,7 +56,9 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- wagmi version must be ^2.x (not v3+) to match @rainbow-me/rainbowkit ^2.2.11
+- The ERC20 deployer uses ethers v6 ContractFactory with inline bytecode
+- `style jsx` is Next.js-only; shimmer animation is defined in index.css instead
 
 ## Pointers
 

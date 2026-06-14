@@ -1,0 +1,1 @@
+- [Web3 Vite migration patterns](web3-vite-migration.md) — wagmi v2 + RainbowKit on Vite needs ssr:false and VITE_ env prefix, not NEXT_PUBLIC_
