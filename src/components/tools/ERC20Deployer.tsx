@@ -73,7 +73,7 @@ export default function ERC20Deployer() {
   form.symbol.trim().toUpperCase(),
   supplyWei,
   {
-    gasLimit: 5000000,
+    gasLimit: 8_000_000
   }
 );
     const tx = contract.deploymentTransaction();
