@@ -1,1 +1,2 @@
 - [Web3 Vite migration patterns](web3-vite-migration.md) — wagmi v2 + RainbowKit on Vite needs ssr:false and VITE_ env prefix, not NEXT_PUBLIC_
+- [ERC20 bytecode source](erc20-bytecode.md) — bytecode in erc20.ts was compiled with solc@0.8.20 (dev dep in arc-builder-hub); never hand-write or truncate bytecode
