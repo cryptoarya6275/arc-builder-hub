@@ -1,6 +1,6 @@
 // src/lib/arcNetwork.ts
 
-export const ARC_CHAIN_IDS = [5042002, 5038098];
+export const ARC_CHAIN_IDS = [5042002];
 
 export const ARC_TESTNET = {
   chainId: "0x4CEF52",
