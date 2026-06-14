@@ -1,0 +1,9 @@
+{
+  "framework": null,
+  "buildCommand": "pnpm install && pnpm --filter @workspace/arc-builder-hub run build",
+  "outputDirectory": "artifacts/arc-builder-hub/dist/public",
+  "installCommand": "pnpm install",
+  "env": {
+    "BASE_PATH": "/"
+  }
+}
