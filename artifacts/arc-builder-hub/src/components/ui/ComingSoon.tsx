@@ -17,16 +17,6 @@ const COMING_SOON_TOOLS = [
   {
     icon: (
       <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-      </svg>
-    ),
-    name: "Faucet Checker",
-    description: "Check faucet status and request testnet USDC. Track drip history and remaining claim amounts.",
-    tags: ["Faucet", "USDC", "Testnet"],
-  },
-  {
-    icon: (
-      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
         <line x1="22" y1="2" x2="11" y2="13" />
         <polygon points="22 2 15 22 11 13 2 9 22 2" />
       </svg>

@@ -3,6 +3,7 @@ import { Providers } from "@/lib/Providers";
 import Navbar from "@/components/ui/Navbar";
 import Hero from "@/components/ui/Hero";
 import WalletDashboard from "@/components/wallet/WalletDashboard";
+import FaucetChecker from "@/components/tools/FaucetChecker";
 import ERC20Deployer from "@/components/tools/ERC20Deployer";
 import TokenHistory from "@/components/tools/TokenHistory";
 import ComingSoon from "@/components/ui/ComingSoon";
@@ -18,6 +19,8 @@ function Home() {
       <Hero />
       <div className="h-px bg-gradient-to-r from-transparent via-arc-400/20 to-transparent" />
       <WalletDashboard />
+      <div className="h-px bg-gradient-to-r from-transparent via-arc-400/10 to-transparent" />
+      <FaucetChecker />
       <div className="h-px bg-gradient-to-r from-transparent via-arc-400/10 to-transparent" />
       <ERC20Deployer onTokenDeployed={history.addToken} />
       {history.tokens.length > 0 && (

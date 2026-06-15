@@ -176,11 +176,12 @@ export default function Hero() {
         </div>
 
         {/* Tool grid preview */}
-        <div className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-lg mx-auto animate-fade-in" style={{ animationDelay: "0.4s" }}>
+        <div className="mt-16 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl mx-auto animate-fade-in" style={{ animationDelay: "0.4s" }}>
           {[
             { icon: "⚡", label: "Token Deployer", live: true },
+            { icon: "💧", label: "Faucet Checker", live: true },
             { icon: "🖼", label: "NFT Minter", live: false },
-            { icon: "💧", label: "Faucet Checker", live: false },
+            { icon: "📡", label: "Multi-Send", live: false },
           ].map((tool) => (
             <div
               key={tool.label}
