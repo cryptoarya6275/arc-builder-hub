@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { parseUnits, formatUnits } from "viem";
 import {
   useAccount,
@@ -11,10 +11,15 @@ import {
 } from "wagmi";
 import { getExplorerAddressUrl, getExplorerTxUrl, isArcTestnet, switchToArcTestnet } from "@/lib/arcNetwork";
 import { SIMPLE_ERC20_ABI, SIMPLE_ERC20_BYTECODE } from "@/lib/erc20";
+import type { DeployedToken } from "@/lib/tokenHistory";
 
 const DEPLOY_GAS_LIMIT = 3_500_000n;
 
-export default function ERC20Deployer() {
+interface Props {
+  onTokenDeployed?: (entry: Omit<DeployedToken, "id" | "deployedAt">) => void;
+}
+
+export default function ERC20Deployer({ onTokenDeployed }: Props) {
   const { isConnected, address } = useAccount();
   const chainId = useChainId();
   const isCorrectNetwork = isArcTestnet(chainId);
@@ -39,6 +44,21 @@ export default function ERC20Deployer() {
   const isDeploying = isPending || isConfirming;
   const isSuccess = !!receipt;
   const contractAddress = receipt?.contractAddress;
+
+  const savedRef = useRef(false);
+  useEffect(() => {
+    if (isSuccess && contractAddress && txHash && !savedRef.current) {
+      savedRef.current = true;
+      onTokenDeployed?.({
+        name: form.name.trim(),
+        symbol: form.symbol.trim().toUpperCase(),
+        supply: form.supply,
+        contractAddress,
+        txHash,
+        chainId,
+      });
+    }
+  }, [isSuccess, contractAddress, txHash, chainId, form.name, form.symbol, form.supply, onTokenDeployed]);
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -73,6 +93,7 @@ export default function ERC20Deployer() {
     resetDeploy();
     setSwitchError(null);
     setForm({ name: "", symbol: "", supply: "" });
+    savedRef.current = false;
   };
 
   const errorMsg = deployError
