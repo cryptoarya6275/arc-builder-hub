@@ -12,7 +12,6 @@ const COMING_SOON_TOOLS = [
     ),
     name: "NFT Minter",
     description: "Mint ERC721 & ERC1155 NFTs directly on Arc Testnet. Upload metadata, set royalties, and deploy collections.",
-    eta: "Q1 2025",
     tags: ["ERC-721", "ERC-1155", "IPFS"],
   },
   {
@@ -23,20 +22,7 @@ const COMING_SOON_TOOLS = [
     ),
     name: "Faucet Checker",
     description: "Check faucet status and request testnet USDC. Track drip history and remaining claim amounts.",
-    eta: "Q1 2025",
     tags: ["Faucet", "USDC", "Testnet"],
-  },
-  {
-    icon: (
-      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <polyline points="16 18 22 12 16 6" />
-        <polyline points="8 6 2 12 8 18" />
-      </svg>
-    ),
-    name: "Contract Interaction",
-    description: "Read and write to any deployed contract. Paste an ABI, call functions, and decode events.",
-    eta: "Q2 2025",
-    tags: ["ABI", "Read", "Write"],
   },
   {
     icon: (
@@ -47,7 +33,6 @@ const COMING_SOON_TOOLS = [
     ),
     name: "Multi-Send",
     description: "Batch send tokens to hundreds of addresses in a single transaction. CSV import supported.",
-    eta: "Q2 2025",
     tags: ["Batch", "CSV", "Gas-efficient"],
   },
 ];
@@ -72,16 +57,16 @@ export default function ComingSoon() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {COMING_SOON_TOOLS.map((tool) => (
             <div
               key={tool.name}
               className="arc-card p-6 group hover:border-arc-400/25 transition-all duration-300 relative overflow-hidden"
             >
-              {/* Coming soon watermark */}
+              {/* Coming soon badge */}
               <div className="absolute top-3 right-3">
                 <span className="arc-badge bg-dark-800 text-dark-500 border border-dark-700 text-xs font-mono">
-                  SOON · {tool.eta}
+                  Coming Soon
                 </span>
               </div>
 

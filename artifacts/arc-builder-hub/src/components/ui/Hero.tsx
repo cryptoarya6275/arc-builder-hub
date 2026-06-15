@@ -31,7 +31,7 @@ export default function Hero() {
         className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] rounded-full opacity-20 pointer-events-none"
         style={{
           background:
-            "radial-gradient(ellipse at center, rgba(0,212,255,0.4) 0%, transparent 70%)",
+            "radial-gradient(ellipse at center, rgba(167,139,250,0.4) 0%, transparent 70%)",
         }}
       />
 
@@ -55,7 +55,7 @@ export default function Hero() {
             className="text-transparent bg-clip-text"
             style={{
               backgroundImage:
-                "linear-gradient(135deg, #00d4ff 0%, #0092bf 50%, #00d4ff 100%)",
+                "linear-gradient(135deg, #a78bfa 0%, #2563eb 50%, #a78bfa 100%)",
               backgroundSize: "200% auto",
               animation: "shimmer 3s linear infinite",
             }}
@@ -176,12 +176,11 @@ export default function Hero() {
         </div>
 
         {/* Tool grid preview */}
-        <div className="mt-16 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl mx-auto animate-fade-in" style={{ animationDelay: "0.4s" }}>
+        <div className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-lg mx-auto animate-fade-in" style={{ animationDelay: "0.4s" }}>
           {[
             { icon: "⚡", label: "Token Deployer", live: true },
             { icon: "🖼", label: "NFT Minter", live: false },
             { icon: "💧", label: "Faucet Checker", live: false },
-            { icon: "📡", label: "Contract Tool", live: false },
           ].map((tool) => (
             <div
               key={tool.label}
