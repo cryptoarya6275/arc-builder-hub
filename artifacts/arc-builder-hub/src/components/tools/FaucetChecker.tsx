@@ -7,8 +7,8 @@ import { isArcTestnet, switchToArcTestnet, ARC_TESTNET } from "@/lib/arcNetwork"
 import { arcTestnetChain } from "@/lib/wagmiConfig";
 import { useSwitchChain } from "wagmi";
 
-const FAUCET_WEB_URL = "https://faucet.arc.network";
-const FAUCET_API_URL = "https://faucet.testnet.arc.network/api/v1/request";
+const FAUCET_WEB_URL = "https://faucet.circle.com/";
+const FAUCET_API_URL = "https://faucet.circle.com/api/v1/request";
 const COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const STORAGE_KEY = "arc_faucet_claims";
 const DRIP_AMOUNT = "100 USDC";
