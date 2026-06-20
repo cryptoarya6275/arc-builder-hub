@@ -180,7 +180,7 @@ export default function Hero() {
           {[
             { icon: "⚡", label: "Token Deployer", live: true },
             { icon: "💧", label: "Faucet Checker", live: true },
-            { icon: "📡", label: "Multi-Send", live: false },
+            { icon: "📡", label: "Multi-Send", live: true },
           ].map((tool) => (
             <div
               key={tool.label}

@@ -6,7 +6,7 @@ import WalletDashboard from "@/components/wallet/WalletDashboard";
 import FaucetChecker from "@/components/tools/FaucetChecker";
 import ERC20Deployer from "@/components/tools/ERC20Deployer";
 import TokenHistory from "@/components/tools/TokenHistory";
-import ComingSoon from "@/components/ui/ComingSoon";
+import MultiSend from "@/components/tools/MultiSend";
 import Footer from "@/components/ui/Footer";
 import { useTokenHistory } from "@/lib/tokenHistory";
 
@@ -32,7 +32,7 @@ function Home() {
         removeToken={history.removeToken}
       />
       <div className="h-px bg-gradient-to-r from-transparent via-arc-400/10 to-transparent" />
-      <ComingSoon />
+      <MultiSend />
       <Footer />
     </main>
   );
