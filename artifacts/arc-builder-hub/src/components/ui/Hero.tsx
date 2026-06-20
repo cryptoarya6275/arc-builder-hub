@@ -10,9 +10,9 @@ const TOOLS = [
   {
     icon: (
       <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <circle cx="12" cy="12" r="10" />
-        <path d="M12 6v6l4 2" />
-        <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" />
+        <polygon points="12 2 2 7 12 12 22 7 12 2" />
+        <polyline points="2 17 12 22 22 17" />
+        <polyline points="2 12 12 17 22 12" />
       </svg>
     ),
     label: "Token Deployer",
@@ -24,8 +24,7 @@ const TOOLS = [
   {
     icon: (
       <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" />
-        <path d="M12 6v6l4 2" />
+        <path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z" />
       </svg>
     ),
     label: "Faucet Checker",
