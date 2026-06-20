@@ -5,18 +5,6 @@ const COMING_SOON_TOOLS = [
   {
     icon: (
       <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-        <circle cx="8.5" cy="8.5" r="1.5" />
-        <polyline points="21 15 16 10 5 21" />
-      </svg>
-    ),
-    name: "NFT Minter",
-    description: "Mint ERC721 & ERC1155 NFTs directly on Arc Testnet. Upload metadata, set royalties, and deploy collections.",
-    tags: ["ERC-721", "ERC-1155", "IPFS"],
-  },
-  {
-    icon: (
-      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
         <line x1="22" y1="2" x2="11" y2="13" />
         <polygon points="22 2 15 22 11 13 2 9 22 2" />
       </svg>
