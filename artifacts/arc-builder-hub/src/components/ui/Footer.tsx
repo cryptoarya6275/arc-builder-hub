@@ -119,7 +119,7 @@ export default function Footer() {
         {/* Bottom bar */}
         <div className="border-t border-dark-800/60 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-xs font-mono text-dark-700">
-            © 2025 Arc Builder Hub · Built for Arc Testnet developers · Use at your own risk
+            © 2025 Arc Builder Hub · Built for Arc Testnet developers
           </p>
           <div className="flex items-center gap-4">
             <a
