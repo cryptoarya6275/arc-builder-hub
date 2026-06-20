@@ -15,8 +15,8 @@ const TOOLS = [
         <polyline points="2 12 12 17 22 12" />
       </svg>
     ),
-    label: "Token Deployer",
-    desc: "Deploy ERC20",
+    label: "Asset Deployment",
+    desc: "ERC20 Contracts",
     live: true,
     color: "text-arc-400",
     bg: "bg-arc-400/10",
@@ -27,8 +27,8 @@ const TOOLS = [
         <path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z" />
       </svg>
     ),
-    label: "Faucet Checker",
-    desc: "Claim Testnet",
+    label: "Faucet Operations",
+    desc: "Testnet Liquidity",
     live: true,
     color: "text-blue-400",
     bg: "bg-blue-400/10",
@@ -40,8 +40,8 @@ const TOOLS = [
         <polygon points="22 2 15 22 11 13 2 9 22 2" />
       </svg>
     ),
-    label: "Multi-Send",
-    desc: "Batch Transfer",
+    label: "Batch Distribution",
+    desc: "Onchain Dispatch",
     live: true,
     color: "text-purple-400",
     bg: "bg-purple-400/10",
@@ -124,18 +124,20 @@ export default function Hero() {
             }}
           />
           <h1 className="relative font-display text-5xl sm:text-6xl lg:text-8xl font-bold leading-none">
-            <span className="text-arc-50 block">ARC</span>
             <span
-              className="block text-transparent bg-clip-text mt-1"
+              className="block text-transparent bg-clip-text"
               style={{
-                backgroundImage: "linear-gradient(135deg, #a78bfa 0%, #2563eb 40%, #a78bfa 80%)",
+                backgroundImage: "linear-gradient(135deg, #f1f0ff 0%, #a78bfa 35%, #2563eb 65%, #a78bfa 100%)",
                 backgroundSize: "200% auto",
                 animation: "shimmer 4s linear infinite",
               }}
             >
-              BUILDER HUB
+              ARC BUILDER HUB
             </span>
           </h1>
+          <p className="mt-4 font-mono text-sm sm:text-base tracking-[0.25em] text-dark-400 uppercase">
+            Builder Infrastructure OS
+          </p>
         </div>
 
         {/* Subtitle — updated copy */}
@@ -143,11 +145,10 @@ export default function Hero() {
           className="text-dark-300 text-lg sm:text-xl max-w-2xl mx-auto mb-3 animate-slide-up font-body leading-relaxed"
           style={{ animationDelay: "0.1s" }}
         >
-          A modular{" "}
-          <span className="text-arc-400 font-medium">Builder OS</span> for{" "}
-          <span className="text-arc-400 font-medium">Arc Layer 1</span>. Token deployment,
-          deployment tracking, faucet intelligence, and essential onchain infrastructure
-          in one unified interface.
+          Modular infrastructure for deploying assets, managing contracts, and operating{" "}
+          <span className="text-arc-400 font-medium">stablecoin-native applications</span>{" "}
+          on{" "}
+          <span className="text-arc-400 font-medium">Arc Layer 1</span>.
         </p>
 
         {/* Network info strip */}
