@@ -6,13 +6,6 @@ import { useAccount } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { ARC_TESTNET, switchToArcTestnet } from "@/lib/arcNetwork";
 
-const STATS = [
-  { value: "3", label: "Live Tools", icon: "⚡" },
-  { value: "5042002", label: "Chain ID", icon: "🔗" },
-  { value: "USDC", label: "Gas Token", icon: "⛽" },
-  { value: "Active", label: "Testnet Status", icon: "🟢" },
-];
-
 const TOOLS = [
   {
     icon: (
@@ -268,25 +261,6 @@ export default function Hero() {
           >
             Read the Docs ↗
           </a>
-        </div>
-
-        {/* Stats cards */}
-        <div
-          className="mt-14 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl mx-auto animate-fade-in"
-          style={{ animationDelay: "0.35s" }}
-        >
-          {STATS.map((stat) => (
-            <div
-              key={stat.label}
-              className="glass-card rounded-xl p-4 text-center hover-lift group"
-            >
-              <div className="text-lg mb-1">{stat.icon}</div>
-              <div className="font-display text-base font-bold text-arc-300 group-hover:text-arc-400 transition-colors">
-                {stat.value}
-              </div>
-              <div className="text-xs font-mono text-dark-500 mt-0.5">{stat.label}</div>
-            </div>
-          ))}
         </div>
 
         {/* Tool cards */}
