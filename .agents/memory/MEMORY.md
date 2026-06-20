@@ -1,0 +1,2 @@
+- [Web3 Vite migration patterns](web3-vite-migration.md) — wagmi/RainbowKit CSR patterns: ssr:false, VITE_ env vars, no style jsx
+- [ERC20 bytecode source](erc20-bytecode.md) — bytecode compiled from SimpleERC20.sol via solc@0.8.20; never hand-write or truncate bytecode
