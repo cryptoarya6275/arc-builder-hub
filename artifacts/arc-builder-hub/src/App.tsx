@@ -8,6 +8,7 @@ import ERC20Deployer from "@/components/tools/ERC20Deployer";
 import TokenHistory from "@/components/tools/TokenHistory";
 import MultiSend from "@/components/tools/MultiSend";
 import Footer from "@/components/ui/Footer";
+import ComingSoon from "@/components/ui/ComingSoon";
 import { useTokenHistory } from "@/lib/tokenHistory";
 
 function Home() {
@@ -33,6 +34,8 @@ function Home() {
       />
       <div className="h-px bg-gradient-to-r from-transparent via-arc-400/10 to-transparent" />
       <MultiSend />
+      <div className="h-px bg-gradient-to-r from-transparent via-arc-400/10 to-transparent" />
+      <ComingSoon />
       <Footer />
     </main>
   );
