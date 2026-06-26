@@ -19,6 +19,7 @@ function Home() {
       <Navbar />
       <Hero />
       <div className="h-px bg-gradient-to-r from-transparent via-arc-400/20 to-transparent" />
+      <div id="tools" />
       <WalletDashboard />
       <div className="h-px bg-gradient-to-r from-transparent via-arc-400/10 to-transparent" />
       <FaucetChecker />
