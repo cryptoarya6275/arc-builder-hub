@@ -9,6 +9,7 @@ import TokenHistory from "@/components/tools/TokenHistory";
 import MultiSend from "@/components/tools/MultiSend";
 import Footer from "@/components/ui/Footer";
 import ComingSoon from "@/components/ui/ComingSoon";
+import SwapBridge from "@/components/swap/SwapBridge";
 import { useTokenHistory } from "@/lib/tokenHistory";
 
 function Home() {
@@ -35,6 +36,8 @@ function Home() {
       />
       <div className="h-px bg-gradient-to-r from-transparent via-arc-400/10 to-transparent" />
       <MultiSend />
+      <div className="h-px bg-gradient-to-r from-transparent via-arc-400/10 to-transparent" />
+      <SwapBridge />
       <div className="h-px bg-gradient-to-r from-transparent via-arc-400/10 to-transparent" />
       <ComingSoon />
       <Footer />
