@@ -131,7 +131,6 @@ function ChainSelector({
         </div>
         <div className="flex-1 text-left">
           <div className="font-display text-sm text-arc-50 group-hover:text-arc-300 transition-colors">{value.name}</div>
-          <div className="font-mono text-xs text-dark-500">CCTP Domain {value.cctpDomain}</div>
         </div>
         <svg className={`w-4 h-4 text-dark-500 transition-transform ${open ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <polyline points="6 9 12 15 18 9" />
@@ -151,7 +150,6 @@ function ChainSelector({
               </div>
               <div className="flex-1 text-left">
                 <div className="font-display text-sm text-arc-50">{chain.name}</div>
-                <div className="font-mono text-xs text-dark-500">Domain {chain.cctpDomain}</div>
               </div>
               {chain.id === value.id && (
                 <svg className="w-4 h-4 text-arc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -379,10 +377,6 @@ export default function BridgePanel() {
           <div className="flex items-center justify-between font-mono text-xs">
             <span className="text-dark-500">Route</span>
             <span className="text-dark-300">{sourceChain.shortName} → {destChain.shortName}</span>
-          </div>
-          <div className="flex items-center justify-between font-mono text-xs">
-            <span className="text-dark-500">Protocol</span>
-            <span className="text-arc-400">Circle CCTP V2</span>
           </div>
           <div className="flex items-center justify-between font-mono text-xs">
             <span className="text-dark-500">Estimated Time</span>
