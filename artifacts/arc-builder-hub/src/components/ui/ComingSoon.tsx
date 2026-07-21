@@ -40,25 +40,6 @@ const COMING_SOON_TOOLS = [
     borderHover: "hover:border-violet-400/40",
     iconHover: "group-hover:text-violet-400 group-hover:bg-violet-400/10",
   },
-  {
-    icon: (
-      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M7 16V4m0 0L3 8m4-4l4 4" />
-        <path d="M17 8v12m0 0l4-4m-4 4l-4-4" />
-      </svg>
-    ),
-    name: "Token Swap",
-    description: "Stablecoin-native token swaps with wallet-integrated execution on Arc Layer 1.",
-    features: [
-      "Swap supported tokens directly within the application",
-      "Stablecoin-native swap experience",
-      "Wallet-integrated execution",
-      "Fast and intuitive interface",
-    ],
-    accentColor: "from-blue-500/15 to-arc-400/10",
-    borderHover: "hover:border-blue-400/40",
-    iconHover: "group-hover:text-blue-400 group-hover:bg-blue-400/10",
-  },
 ];
 
 export default function ComingSoon() {
