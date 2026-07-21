@@ -1,11 +1,29 @@
 // src/components/swap/SwapPanel.tsx
 "use client";
 
-import { useState, useCallback } from "react";
-import { useAccount, useBalance, useChainId } from "wagmi";
+import { useState, useCallback, useEffect } from "react";
+import { useAccount, useBalance, useChainId, useReadContract, useBlockNumber } from "wagmi";
+import { formatUnits } from "viem";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { isArcTestnet, switchToArcTestnet } from "@/lib/arcNetwork";
 import TokenSelectorModal, { Token, ARC_TOKENS, TokenLogo } from "./TokenSelectorModal";
+
+const ERC20_ABI = [
+  {
+    name: "balanceOf",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "account", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    name: "decimals",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint8" }],
+  },
+] as const;
 
 type TxStatus = "idle" | "pending" | "success" | "failed";
 
@@ -104,13 +122,58 @@ export default function SwapPanel() {
   const [txHash, setTxHash] = useState<string | undefined>();
   const [switching, setSwitching] = useState(false);
 
-  const { data: balanceData } = useBalance({
+  const isNative = fromToken.address === null;
+
+  // Native balance (USDC = native on Arc Testnet)
+  const { data: nativeBalance, refetch: refetchNative } = useBalance({
     address,
-    token: fromToken.address as `0x${string}` | undefined ?? undefined,
-    query: { enabled: !!address && isCorrectNetwork },
+    query: { enabled: !!address && isCorrectNetwork && isNative },
   });
 
-  const balanceFormatted = balanceData ? parseFloat(balanceData.formatted).toFixed(4) : "0.0000";
+  // ERC20 raw balance
+  const { data: erc20BalanceRaw, refetch: refetchErc20 } = useReadContract({
+    address: fromToken.address as `0x${string}`,
+    abi: ERC20_ABI,
+    functionName: "balanceOf",
+    args: [address!],
+    query: { enabled: !!address && isCorrectNetwork && !isNative },
+  });
+
+  // ERC20 decimals (read on-chain, never assume)
+  const { data: erc20Decimals } = useReadContract({
+    address: fromToken.address as `0x${string}`,
+    abi: ERC20_ABI,
+    functionName: "decimals",
+    query: { enabled: !!address && isCorrectNetwork && !isNative },
+  });
+
+  // Auto-refresh every new block
+  const { data: blockNumber } = useBlockNumber({ watch: isConnected && isCorrectNetwork });
+  useEffect(() => {
+    if (!blockNumber) return;
+    if (isNative) refetchNative();
+    else refetchErc20();
+  }, [blockNumber, isNative, refetchNative, refetchErc20]);
+
+  // Compute human-readable balance
+  const balanceFormatted = (() => {
+    if (!isConnected || !isCorrectNetwork) return "0.0000";
+    if (isNative) {
+      return nativeBalance ? parseFloat(nativeBalance.formatted).toFixed(4) : "0.0000";
+    }
+    if (erc20BalanceRaw !== undefined && erc20Decimals !== undefined) {
+      return parseFloat(formatUnits(erc20BalanceRaw as bigint, erc20Decimals as number)).toFixed(4);
+    }
+    return "0.0000";
+  })();
+
+  const balanceRaw = (() => {
+    if (isNative) return nativeBalance ? parseFloat(nativeBalance.formatted) : 0;
+    if (erc20BalanceRaw !== undefined && erc20Decimals !== undefined) {
+      return parseFloat(formatUnits(erc20BalanceRaw as bigint, erc20Decimals as number));
+    }
+    return 0;
+  })();
   const amountNum = parseFloat(amount) || 0;
   const estimatedOut = amountNum > 0 ? (amountNum * 0.9982).toFixed(6) : "0.000000";
   const priceImpact = amountNum > 0 ? (amountNum * 0.001).toFixed(3) : "0.000";
@@ -126,9 +189,8 @@ export default function SwapPanel() {
   };
 
   const handleMax = () => {
-    if (balanceData) {
-      const maxVal = parseFloat(balanceData.formatted);
-      setAmount(maxVal > 0.001 ? (maxVal - 0.001).toFixed(6) : "0");
+    if (balanceRaw > 0) {
+      setAmount(balanceRaw > 0.001 ? (balanceRaw - 0.001).toFixed(6) : "0");
     }
   };
 
@@ -149,12 +211,15 @@ export default function SwapPanel() {
       setTxHash(mockHash);
       setTxStatus("success");
       setAmount("");
+      // Refresh balance after successful swap
+      if (isNative) refetchNative();
+      else refetchErc20();
     } catch {
       setTxStatus("failed");
     }
   }, [isConnected, isCorrectNetwork, amount]);
 
-  const canSwap = isConnected && isCorrectNetwork && amountNum > 0 && amountNum <= parseFloat(balanceData?.formatted ?? "0");
+  const canSwap = isConnected && isCorrectNetwork && amountNum > 0 && amountNum <= balanceRaw;
 
   return (
     <>
@@ -357,7 +422,7 @@ export default function SwapPanel() {
               <polyline points="7 23 3 19 7 15" />
               <path d="M21 13v2a4 4 0 01-4 4H3" />
             </svg>
-            {!amount ? "Enter an Amount" : amountNum > parseFloat(balanceData?.formatted ?? "0") ? `Insufficient ${fromToken.symbol}` : `Swap ${fromToken.symbol} for ${toToken.symbol}`}
+            {!amount ? "Enter an Amount" : amountNum > balanceRaw ? `Insufficient ${fromToken.symbol}` : `Swap ${fromToken.symbol} for ${toToken.symbol}`}
           </button>
         )}
       </div>

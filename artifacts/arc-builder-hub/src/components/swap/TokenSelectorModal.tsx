@@ -16,8 +16,8 @@ export const ARC_TOKENS: Token[] = [
   {
     symbol: "USDC",
     name: "USD Coin",
-    decimals: 6,
-    address: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238", // placeholder testnet
+    decimals: 18, // native currency on Arc Testnet — 18 decimals per wagmiConfig
+    address: null, // USDC is the native gas token on Arc Testnet, not an ERC20
     logo: "usdc",
     color: "#2775CA",
   },
