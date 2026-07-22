@@ -1,4 +1,7 @@
 // src/components/swap/SwapPanel.tsx
+// Real on-chain swap via Circle App Kit SDK + viem browser-wallet adapter.
+// https://docs.arc.io/app-kit/swap
+
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
@@ -6,6 +9,7 @@ import { useAccount, useBalance, useChainId, useReadContract, useBlockNumber } f
 import { formatUnits } from "viem";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { isArcTestnet, switchToArcTestnet } from "@/lib/arcNetwork";
+import { useCircleKit, type SwapResult } from "@/lib/circleKit";
 import TokenSelectorModal, { Token, ARC_TOKENS, TokenLogo } from "./TokenSelectorModal";
 
 const ERC20_ABI = [
@@ -25,39 +29,59 @@ const ERC20_ABI = [
   },
 ] as const;
 
-type TxStatus = "idle" | "pending" | "success" | "failed";
+type TxStatus = "idle" | "awaiting-wallet" | "pending" | "success" | "failed";
 
-interface SlippageOption { label: string; value: number }
-const SLIPPAGE_OPTIONS: SlippageOption[] = [
-  { label: "0.1%", value: 0.1 },
-  { label: "0.5%", value: 0.5 },
-  { label: "1.0%", value: 1.0 },
-];
+// ─── Transaction Modal ────────────────────────────────────────────────────────
 
 function TxModal({
   status,
-  txHash,
+  result,
+  error,
   onClose,
 }: {
   status: TxStatus;
-  txHash?: string;
+  result?: SwapResult;
+  error?: string;
   onClose: () => void;
 }) {
   if (status === "idle") return null;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-dark-950/80 backdrop-blur-sm" onClick={status !== "pending" ? onClose : undefined} />
+      <div
+        className="absolute inset-0 bg-dark-950/80 backdrop-blur-sm"
+        onClick={status !== "awaiting-wallet" && status !== "pending" ? onClose : undefined}
+      />
       <div className="relative w-full max-w-sm rounded-2xl border border-arc-400/20 bg-dark-900 p-7 shadow-2xl text-center animate-slide-up">
-        {status === "pending" && (
+
+        {/* Awaiting wallet signature */}
+        {status === "awaiting-wallet" && (
           <>
             <div className="flex items-center justify-center mb-5">
               <div className="w-16 h-16 rounded-full border-2 border-arc-400/20 border-t-arc-400 animate-spin" />
             </div>
-            <h3 className="font-display text-lg text-arc-50 mb-2">Awaiting Confirmation</h3>
-            <p className="font-mono text-sm text-dark-400">Confirm this transaction in your wallet.</p>
+            <h3 className="font-display text-lg text-arc-50 mb-2">Confirm in Wallet</h3>
+            <p className="font-mono text-sm text-dark-400">
+              Check your wallet and approve the swap transaction.
+            </p>
           </>
         )}
-        {status === "success" && (
+
+        {/* Processing on-chain */}
+        {status === "pending" && (
+          <>
+            <div className="flex items-center justify-center mb-5">
+              <div className="w-16 h-16 rounded-full border-2 border-blue-500/20 border-t-blue-400 animate-spin" />
+            </div>
+            <h3 className="font-display text-lg text-arc-50 mb-2">Swap Processing</h3>
+            <p className="font-mono text-sm text-dark-400">
+              Transaction submitted. Waiting for on-chain confirmation…
+            </p>
+          </>
+        )}
+
+        {/* Success */}
+        {status === "success" && result && (
           <>
             <div className="flex items-center justify-center mb-5">
               <div className="w-16 h-16 rounded-full bg-green-500/10 border border-green-500/30 flex items-center justify-center">
@@ -66,17 +90,34 @@ function TxModal({
                 </svg>
               </div>
             </div>
-            <h3 className="font-display text-lg text-arc-50 mb-2">Swap Successful</h3>
-            <p className="font-mono text-sm text-dark-400 mb-5">Your swap was executed on Arc Testnet.</p>
-            {txHash && (
+            <h3 className="font-display text-lg text-arc-50 mb-1">Swap Successful</h3>
+            <p className="font-mono text-sm text-dark-400 mb-3">
+              Swapped {result.amountIn} {result.tokenIn} → {result.amountOut} {result.tokenOut}
+            </p>
+
+            {/* Fees */}
+            {result.fees.length > 0 && (
+              <div className="mb-4 rounded-lg border border-arc-400/10 bg-dark-950/60 px-3 py-2 text-left space-y-1">
+                {result.fees.map((fee, i) => (
+                  <div key={i} className="flex justify-between font-mono text-xs">
+                    <span className="text-dark-500 capitalize">{fee.type} fee</span>
+                    <span className="text-dark-300">{fee.amount} {fee.token}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {result.txHash && (
               <a
-                href={`https://testnet.arcscan.app/tx/${txHash}`}
+                href={result.explorerUrl || `https://testnet.arcscan.app/tx/${result.txHash}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 font-mono text-xs text-arc-400 hover:text-arc-300 border border-arc-400/20 px-3 py-2 rounded-lg transition-colors mb-4"
+                className="inline-flex items-center gap-1.5 font-mono text-xs text-arc-400 hover:text-arc-300 border border-arc-400/20 px-3 py-2 rounded-lg transition-colors mb-4 max-w-full overflow-hidden"
               >
-                View on Explorer
-                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <span className="truncate">
+                  {result.txHash.slice(0, 10)}…{result.txHash.slice(-8)}
+                </span>
+                <svg className="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />
                 </svg>
               </a>
@@ -84,6 +125,8 @@ function TxModal({
             <button onClick={onClose} className="arc-button-primary w-full text-sm py-2.5">Done</button>
           </>
         )}
+
+        {/* Failed */}
         {status === "failed" && (
           <>
             <div className="flex items-center justify-center mb-5">
@@ -95,8 +138,10 @@ function TxModal({
                 </svg>
               </div>
             </div>
-            <h3 className="font-display text-lg text-arc-50 mb-2">Transaction Failed</h3>
-            <p className="font-mono text-sm text-dark-400 mb-5">The swap was rejected or failed. No funds were moved.</p>
+            <h3 className="font-display text-lg text-arc-50 mb-2">Swap Failed</h3>
+            <p className="font-mono text-sm text-dark-400 mb-5 break-words">
+              {error || "The swap was rejected or failed. No funds were moved."}
+            </p>
             <button onClick={onClose} className="arc-button-secondary w-full text-sm py-2.5">Dismiss</button>
           </>
         )}
@@ -105,21 +150,22 @@ function TxModal({
   );
 }
 
+// ─── Main Component ───────────────────────────────────────────────────────────
+
 export default function SwapPanel() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const isCorrectNetwork = isArcTestnet(chainId);
+  const { swap } = useCircleKit();
 
   const [fromToken, setFromToken] = useState<Token>(ARC_TOKENS[0]); // USDC
-  const [toToken, setToToken] = useState<Token>(ARC_TOKENS[3]);     // WETH
-  const [amount, setAmount] = useState("");
-  const [slippage, setSlippage] = useState(0.5);
-  const [customSlippage, setCustomSlippage] = useState("");
-  const [showSlippage, setShowSlippage] = useState(false);
+  const [toToken, setToToken]     = useState<Token>(ARC_TOKENS[1]); // EURC
+  const [amount, setAmount]       = useState("");
   const [fromSelectorOpen, setFromSelectorOpen] = useState(false);
-  const [toSelectorOpen, setToSelectorOpen] = useState(false);
-  const [txStatus, setTxStatus] = useState<TxStatus>("idle");
-  const [txHash, setTxHash] = useState<string | undefined>();
+  const [toSelectorOpen,   setToSelectorOpen]   = useState(false);
+  const [txStatus, setTxStatus]   = useState<TxStatus>("idle");
+  const [txResult, setTxResult]   = useState<SwapResult | undefined>();
+  const [txError,  setTxError]    = useState<string | undefined>();
   const [switching, setSwitching] = useState(false);
 
   const isNative = fromToken.address === null;
@@ -130,7 +176,7 @@ export default function SwapPanel() {
     query: { enabled: !!address && isCorrectNetwork && isNative },
   });
 
-  // ERC20 raw balance
+  // ERC20 balance
   const { data: erc20BalanceRaw, refetch: refetchErc20 } = useReadContract({
     address: fromToken.address as `0x${string}`,
     abi: ERC20_ABI,
@@ -139,7 +185,6 @@ export default function SwapPanel() {
     query: { enabled: !!address && isCorrectNetwork && !isNative },
   });
 
-  // ERC20 decimals (read on-chain, never assume)
   const { data: erc20Decimals } = useReadContract({
     address: fromToken.address as `0x${string}`,
     abi: ERC20_ABI,
@@ -147,7 +192,7 @@ export default function SwapPanel() {
     query: { enabled: !!address && isCorrectNetwork && !isNative },
   });
 
-  // Auto-refresh every new block
+  // Auto-refresh on new block
   const { data: blockNumber } = useBlockNumber({ watch: isConnected && isCorrectNetwork });
   useEffect(() => {
     if (!blockNumber) return;
@@ -155,31 +200,22 @@ export default function SwapPanel() {
     else refetchErc20();
   }, [blockNumber, isNative, refetchNative, refetchErc20]);
 
-  // Compute human-readable balance
   const balanceFormatted = (() => {
     if (!isConnected || !isCorrectNetwork) return "0.0000";
-    if (isNative) {
-      return nativeBalance ? parseFloat(nativeBalance.formatted).toFixed(4) : "0.0000";
-    }
-    if (erc20BalanceRaw !== undefined && erc20Decimals !== undefined) {
+    if (isNative) return nativeBalance ? parseFloat(nativeBalance.formatted).toFixed(4) : "0.0000";
+    if (erc20BalanceRaw !== undefined && erc20Decimals !== undefined)
       return parseFloat(formatUnits(erc20BalanceRaw as bigint, erc20Decimals as number)).toFixed(4);
-    }
     return "0.0000";
   })();
 
   const balanceRaw = (() => {
     if (isNative) return nativeBalance ? parseFloat(nativeBalance.formatted) : 0;
-    if (erc20BalanceRaw !== undefined && erc20Decimals !== undefined) {
+    if (erc20BalanceRaw !== undefined && erc20Decimals !== undefined)
       return parseFloat(formatUnits(erc20BalanceRaw as bigint, erc20Decimals as number));
-    }
     return 0;
   })();
-  const amountNum = parseFloat(amount) || 0;
-  const estimatedOut = amountNum > 0 ? (amountNum * 0.9982).toFixed(6) : "0.000000";
-  const priceImpact = amountNum > 0 ? (amountNum * 0.001).toFixed(3) : "0.000";
-  const networkFee = "~0.001 USDC";
 
-  const effectiveSlippage = customSlippage ? parseFloat(customSlippage) : slippage;
+  const amountNum = parseFloat(amount) || 0;
 
   const handleSwapTokens = () => {
     const tmp = fromToken;
@@ -200,24 +236,39 @@ export default function SwapPanel() {
     setSwitching(false);
   };
 
+  /** Execute a real on-chain swap via Circle App Kit. */
   const handleSwap = useCallback(async () => {
-    if (!isConnected || !isCorrectNetwork || !amount) return;
-    setTxStatus("pending");
-    // Simulate transaction (replace with real DEX integration)
+    if (!isConnected || !isCorrectNetwork || !amount || amountNum <= 0) return;
+
+    setTxResult(undefined);
+    setTxError(undefined);
+    setTxStatus("awaiting-wallet");
+
     try {
-      await new Promise((r) => setTimeout(r, 2200));
-      // Randomly succeed for demo; in production wire actual swap tx here
-      const mockHash = `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join("")}`;
-      setTxHash(mockHash);
+      const result = await swap({
+        tokenIn:  fromToken.symbol,
+        tokenOut: toToken.symbol,
+        amountIn: amount,
+      });
+
+      setTxResult(result);
       setTxStatus("success");
       setAmount("");
+
       // Refresh balance after successful swap
       if (isNative) refetchNative();
       else refetchErc20();
-    } catch {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      // User rejected in wallet → show friendly message
+      if (msg.toLowerCase().includes("user rejected") || msg.toLowerCase().includes("denied")) {
+        setTxError("You rejected the transaction in your wallet.");
+      } else {
+        setTxError(msg);
+      }
       setTxStatus("failed");
     }
-  }, [isConnected, isCorrectNetwork, amount]);
+  }, [isConnected, isCorrectNetwork, amount, amountNum, swap, fromToken, toToken, isNative, refetchNative, refetchErc20]);
 
   const canSwap = isConnected && isCorrectNetwork && amountNum > 0 && amountNum <= balanceRaw;
 
@@ -260,11 +311,6 @@ export default function SwapPanel() {
               className="flex-1 bg-transparent text-right text-2xl font-mono text-arc-50 placeholder-dark-700 focus:outline-none"
             />
           </div>
-          {amountNum > 0 && (
-            <div className="mt-2 text-right font-mono text-xs text-dark-500">
-              ≈ ${(amountNum * 1.0).toFixed(2)} USD
-            </div>
-          )}
         </div>
 
         {/* Swap direction button */}
@@ -297,88 +343,29 @@ export default function SwapPanel() {
                 <polyline points="6 9 12 15 18 9" />
               </svg>
             </button>
-            <div className="flex-1 text-right text-2xl font-mono text-dark-400">
-              {amountNum > 0 ? estimatedOut : "0.000000"}
+            <div className="flex-1 text-right text-2xl font-mono text-dark-500">
+              {/* Quote shown after execution only — Circle App Kit returns amountOut with the result */}
+              {txResult && txResult.tokenOut === toToken.symbol && txResult.tokenIn === fromToken.symbol
+                ? txResult.amountOut
+                : "—"}
             </div>
           </div>
         </div>
 
-        {/* Details */}
-        {amountNum > 0 && (
-          <div className="rounded-xl border border-arc-400/10 bg-dark-950/40 px-4 py-3 space-y-2">
-            <div className="flex items-center justify-between font-mono text-xs">
-              <span className="text-dark-500">Rate</span>
-              <span className="text-dark-300">1 {fromToken.symbol} = {(0.9982).toFixed(4)} {toToken.symbol}</span>
-            </div>
-            <div className="flex items-center justify-between font-mono text-xs">
-              <span className="text-dark-500">Price Impact</span>
-              <span className={parseFloat(priceImpact) > 1 ? "text-amber-400" : "text-green-400"}>
-                {priceImpact}%
-              </span>
-            </div>
-            <div className="flex items-center justify-between font-mono text-xs">
-              <span className="text-dark-500">Network Fee</span>
-              <span className="text-dark-300">{networkFee}</span>
-            </div>
-            <div className="flex items-center justify-between font-mono text-xs">
-              <span className="text-dark-500">Min. Received</span>
-              <span className="text-dark-300">
-                {(parseFloat(estimatedOut) * (1 - effectiveSlippage / 100)).toFixed(6)} {toToken.symbol}
-              </span>
-            </div>
+        {/* Info row */}
+        <div className="rounded-xl border border-arc-400/10 bg-dark-950/40 px-4 py-3 space-y-2">
+          <div className="flex items-center justify-between font-mono text-xs">
+            <span className="text-dark-500">Protocol</span>
+            <span className="text-dark-300">Circle App Kit · Arc Testnet</span>
           </div>
-        )}
-
-        {/* Slippage */}
-        <div className="rounded-xl border border-arc-400/10 bg-dark-950/40 px-4 py-3">
-          <button
-            onClick={() => setShowSlippage(!showSlippage)}
-            className="w-full flex items-center justify-between"
-          >
-            <div className="flex items-center gap-2">
-              <svg className="w-3.5 h-3.5 text-dark-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M4.93 19.07l1.41-1.41M19.07 19.07l-1.41-1.41M21 12h-1M4 12H3M12 21v-1M12 4V3" />
-              </svg>
-              <span className="font-mono text-xs text-dark-500 uppercase tracking-widest">Slippage Tolerance</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-xs text-arc-400">{effectiveSlippage}%</span>
-              <svg
-                className={`w-3 h-3 text-dark-500 transition-transform ${showSlippage ? "rotate-180" : ""}`}
-                viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-              >
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
-            </div>
-          </button>
-          {showSlippage && (
-            <div className="mt-3 flex items-center gap-2">
-              {SLIPPAGE_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => { setSlippage(opt.value); setCustomSlippage(""); }}
-                  className={`font-mono text-xs px-3 py-1.5 rounded-lg border transition-all ${
-                    !customSlippage && slippage === opt.value
-                      ? "border-arc-400/60 bg-arc-400/15 text-arc-400"
-                      : "border-arc-400/15 text-dark-400 hover:border-arc-400/30"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-              <input
-                type="number"
-                min="0.01"
-                max="50"
-                placeholder="Custom"
-                value={customSlippage}
-                onChange={(e) => setCustomSlippage(e.target.value)}
-                className="flex-1 bg-dark-950/80 border border-arc-400/15 focus:border-arc-400/40 rounded-lg px-2.5 py-1.5 text-xs font-mono text-arc-50 placeholder-dark-600 focus:outline-none transition-all"
-              />
-              <span className="font-mono text-xs text-dark-500">%</span>
-            </div>
-          )}
+          <div className="flex items-center justify-between font-mono text-xs">
+            <span className="text-dark-500">Pair</span>
+            <span className="text-dark-300">{fromToken.symbol} → {toToken.symbol}</span>
+          </div>
+          <div className="flex items-center justify-between font-mono text-xs">
+            <span className="text-dark-500">Quote</span>
+            <span className="text-dark-400 italic">Fetched at execution time</span>
+          </div>
         </div>
 
         {/* Action Button */}
@@ -422,11 +409,16 @@ export default function SwapPanel() {
               <polyline points="7 23 3 19 7 15" />
               <path d="M21 13v2a4 4 0 01-4 4H3" />
             </svg>
-            {!amount ? "Enter an Amount" : amountNum > balanceRaw ? `Insufficient ${fromToken.symbol}` : `Swap ${fromToken.symbol} for ${toToken.symbol}`}
+            {!amount
+              ? "Enter an Amount"
+              : amountNum > balanceRaw
+              ? `Insufficient ${fromToken.symbol}`
+              : `Swap ${fromToken.symbol} → ${toToken.symbol}`}
           </button>
         )}
       </div>
 
+      {/* Token Selectors */}
       <TokenSelectorModal
         open={fromSelectorOpen}
         onClose={() => setFromSelectorOpen(false)}
@@ -441,10 +433,13 @@ export default function SwapPanel() {
         excluded={fromToken.symbol}
         title="Select To Token"
       />
+
+      {/* Transaction Status Modal */}
       <TxModal
         status={txStatus}
-        txHash={txHash}
-        onClose={() => { setTxStatus("idle"); setTxHash(undefined); }}
+        result={txResult}
+        error={txError}
+        onClose={() => { setTxStatus("idle"); setTxResult(undefined); setTxError(undefined); }}
       />
     </>
   );

@@ -7,17 +7,20 @@ export interface Token {
   symbol: string;
   name: string;
   decimals: number;
-  address: string | null; // null = native
-  logo: string; // SVG path string or color
+  address: string | null; // null = native gas token
+  logo: string;
   color: string;
 }
 
+// Arc Testnet tokens supported by Circle App Kit Swap:
+// https://docs.arc.io/app-kit/references/supported-blockchains#supported-tokens
+// Only USDC, EURC, and cirBTC are supported for Swap on Arc Testnet.
 export const ARC_TOKENS: Token[] = [
   {
     symbol: "USDC",
     name: "USD Coin",
-    decimals: 18, // native currency on Arc Testnet — 18 decimals per wagmiConfig
-    address: null, // USDC is the native gas token on Arc Testnet, not an ERC20
+    decimals: 18, // native gas token on Arc Testnet — 18 decimals
+    address: null, // USDC is the native currency, not an ERC20
     logo: "usdc",
     color: "#2775CA",
   },
@@ -25,7 +28,7 @@ export const ARC_TOKENS: Token[] = [
     symbol: "EURC",
     name: "Euro Coin",
     decimals: 6,
-    address: "0x08210F9170F89Ab7658F0B5E3fF39b0E03C2Bef9", // placeholder testnet
+    address: "0x08210F9170F89Ab7658F0B5E3fF39b0E03C2Bef9",
     logo: "eurc",
     color: "#2B92D3",
   },
@@ -33,21 +36,13 @@ export const ARC_TOKENS: Token[] = [
     symbol: "cirBTC",
     name: "Circle BTC",
     decimals: 8,
-    address: "0x3B6fBba7d0F0E1E2aF8E8E5F3D9B2A1C4F7E8901", // placeholder testnet
+    address: "0x3B6fBba7d0F0E1E2aF8E8E5F3D9B2A1C4F7E8901",
     logo: "btc",
     color: "#F7931A",
   },
-  {
-    symbol: "WETH",
-    name: "Wrapped Ether",
-    decimals: 18,
-    address: "0x4F96Fe3b7A6Cf9725f59d353F723c1bDb64CA6Aa", // placeholder testnet
-    logo: "eth",
-    color: "#627EEA",
-  },
 ];
 
-function TokenLogo({ token, size = 36 }: { token: Token; size?: number }) {
+export function TokenLogo({ token, size = 36 }: { token: Token; size?: number }) {
   const s = size;
   if (token.logo === "usdc") {
     return (
@@ -73,17 +68,13 @@ function TokenLogo({ token, size = 36 }: { token: Token; size?: number }) {
       </svg>
     );
   }
-  // ETH / default
+  // Generic circle fallback
   return (
-    <svg width={s} height={s} viewBox="0 0 32 32" fill="none">
-      <circle cx="16" cy="16" r="16" fill="#627EEA" />
-      <path d="M16 4l-.2.6v15.5l.2.2 8-4.7L16 4z" fill="white" fillOpacity=".6" />
-      <path d="M16 4L8 15.6l8 4.7V4z" fill="white" />
-      <path d="M16 21.6l-.1.1v6l.1.3 8-11.3-8 5z" fill="white" fillOpacity=".6" />
-      <path d="M16 28V21.6l-8-5 8 11.4z" fill="white" />
-      <path d="M16 20.3l8-4.7-8-3.6v8.3z" fill="white" fillOpacity=".2" />
-      <path d="M8 15.6l8 4.7v-8.3l-8 3.6z" fill="white" fillOpacity=".6" />
-    </svg>
+    <div
+      style={{ width: s, height: s, borderRadius: "50%", background: token.color, display: "flex", alignItems: "center", justifyContent: "center" }}
+    >
+      <span style={{ color: "white", fontSize: s * 0.35, fontWeight: "bold" }}>{token.symbol[0]}</span>
+    </div>
   );
 }
 
@@ -117,13 +108,8 @@ export default function TokenSelectorModal({ open, onClose, onSelect, excluded, 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-dark-950/80 backdrop-blur-sm"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-dark-950/80 backdrop-blur-sm" onClick={onClose} />
 
-      {/* Modal */}
       <div className="relative w-full max-w-sm rounded-2xl border border-arc-400/20 bg-dark-900 shadow-2xl overflow-hidden animate-slide-up">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-arc-400/10">
@@ -181,9 +167,14 @@ export default function TokenSelectorModal({ open, onClose, onSelect, excluded, 
             ))
           )}
         </div>
+
+        {/* Footer note */}
+        <div className="px-5 py-3 border-t border-arc-400/10">
+          <p className="font-mono text-xs text-dark-600 text-center">
+            Swap-supported tokens on Arc Testnet via Circle App Kit
+          </p>
+        </div>
       </div>
     </div>
   );
 }
-
-export { TokenLogo };

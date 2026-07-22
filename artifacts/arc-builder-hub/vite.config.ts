@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
+import { nodePolyfills } from "vite-plugin-node-polyfills";
 
 const isReplit = process.env.REPL_ID !== undefined;
 const isBuild = process.argv.some((a) => a === "build");
@@ -22,6 +23,11 @@ if (isReplit && !isBuild && !process.env.BASE_PATH) {
 export default defineConfig({
   base: basePath,
   plugins: [
+    // Polyfill Node.js built-ins (Buffer, global, process) needed by @circle-fin/app-kit in browser
+    nodePolyfills({
+      globals: { Buffer: true, global: true, process: true },
+      protocolImports: true,
+    }),
     react(),
     tailwindcss(),
     ...(isReplit && !isBuild

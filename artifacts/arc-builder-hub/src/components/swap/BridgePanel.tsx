@@ -1,123 +1,52 @@
 // src/components/swap/BridgePanel.tsx
+// Real cross-chain USDC bridge via Circle CCTP V2 through Circle App Kit.
+// https://docs.arc.io/app-kit/bridge
+
 "use client";
 
 import { useState, useCallback } from "react";
 import { useAccount, useBalance, useChainId } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { isArcTestnet, switchToArcTestnet } from "@/lib/arcNetwork";
+import { useCircleKit, BRIDGE_CHAINS, type BridgeChain, type BridgeResult } from "@/lib/circleKit";
 
-interface ChainOption {
-  id: number;
-  name: string;
-  shortName: string;
-  icon: React.ReactNode;
-  cctpDomain: number;
-  color: string;
+// ─── Chain Selector ───────────────────────────────────────────────────────────
+
+function ChainIcon({ chain, size = 28 }: { chain: BridgeChain; size?: number }) {
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        background: chain.color + "33",
+        border: `1px solid ${chain.color}55`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+      }}
+    >
+      <span style={{ color: chain.color, fontSize: size * 0.38, fontWeight: 700, lineHeight: 1 }}>
+        {chain.shortName[0]}
+      </span>
+    </div>
+  );
 }
-
-const CHAIN_ICON_BASE = "w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-bold";
-
-function makeChainIcon(label: string, bg: string) {
-  return <div className={`${CHAIN_ICON_BASE}`} style={{ background: bg, width: 20, height: 20, fontSize: 9 }}>{label}</div>;
-}
-
-const SUPPORTED_CHAINS: ChainOption[] = [
-  {
-    id: 5042002,
-    name: "Arc Testnet",
-    shortName: "Arc",
-    icon: makeChainIcon("A", "#7c3aed"),
-    cctpDomain: 9,
-    color: "#7c3aed",
-  },
-  {
-    id: 11155111,
-    name: "Ethereum Sepolia",
-    shortName: "Sepolia",
-    icon: makeChainIcon("E", "#627EEA"),
-    cctpDomain: 0,
-    color: "#627EEA",
-  },
-  {
-    id: 43113,
-    name: "Avalanche Fuji",
-    shortName: "Fuji",
-    icon: makeChainIcon("Av", "#E84142"),
-    cctpDomain: 1,
-    color: "#E84142",
-  },
-  {
-    id: 11155420,
-    name: "OP Sepolia",
-    shortName: "OP",
-    icon: makeChainIcon("O", "#FF0420"),
-    cctpDomain: 2,
-    color: "#FF0420",
-  },
-  {
-    id: 421614,
-    name: "Arbitrum Sepolia",
-    shortName: "Arb",
-    icon: makeChainIcon("Ar", "#28A0F0"),
-    cctpDomain: 3,
-    color: "#28A0F0",
-  },
-  {
-    id: 84532,
-    name: "Base Sepolia",
-    shortName: "Base",
-    icon: makeChainIcon("B", "#0052FF"),
-    cctpDomain: 6,
-    color: "#0052FF",
-  },
-  {
-    id: 80002,
-    name: "Polygon Amoy",
-    shortName: "Polygon",
-    icon: makeChainIcon("P", "#7B3FE4"),
-    cctpDomain: 7,
-    color: "#7B3FE4",
-  },
-];
-
-interface BridgeAsset {
-  symbol: string;
-  name: string;
-  address: string;
-  color: string;
-}
-
-const BRIDGE_ASSETS: BridgeAsset[] = [
-  { symbol: "USDC", name: "USD Coin", address: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238", color: "#2775CA" },
-  { symbol: "EURC", name: "Euro Coin", address: "0x08210F9170F89Ab7658F0B5E3fF39b0E03C2Bef9", color: "#2B92D3" },
-];
-
-interface TxHistory {
-  id: string;
-  fromChain: string;
-  toChain: string;
-  asset: string;
-  amount: string;
-  status: "pending" | "attesting" | "minting" | "complete" | "failed";
-  txHash: string;
-  timestamp: number;
-}
-
-type BridgePhase = "idle" | "confirming" | "attesting" | "minting" | "complete" | "failed";
 
 function ChainSelector({
+  label,
   value,
   onChange,
   exclude,
-  label,
 }: {
-  value: ChainOption;
-  onChange: (c: ChainOption) => void;
-  exclude?: number;
   label: string;
+  value: BridgeChain;
+  onChange: (c: BridgeChain) => void;
+  exclude?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const options = SUPPORTED_CHAINS.filter((c) => c.id !== exclude);
+  const options = BRIDGE_CHAINS.filter((c) => c.circleId !== exclude);
 
   return (
     <div className="relative">
@@ -126,13 +55,14 @@ function ChainSelector({
         onClick={() => setOpen(!open)}
         className="w-full flex items-center gap-3 bg-dark-950/60 border border-arc-400/15 hover:border-arc-400/35 rounded-xl px-4 py-3 transition-all group"
       >
-        <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: value.color + "22" }}>
-          {value.icon}
-        </div>
+        <ChainIcon chain={value} size={32} />
         <div className="flex-1 text-left">
           <div className="font-display text-sm text-arc-50 group-hover:text-arc-300 transition-colors">{value.name}</div>
         </div>
-        <svg className={`w-4 h-4 text-dark-500 transition-transform ${open ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <svg
+          className={`w-4 h-4 text-dark-500 transition-transform ${open ? "rotate-180" : ""}`}
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+        >
           <polyline points="6 9 12 15 18 9" />
         </svg>
       </button>
@@ -141,17 +71,15 @@ function ChainSelector({
         <div className="absolute z-30 mt-1 w-full rounded-xl border border-arc-400/20 bg-dark-900 shadow-2xl overflow-hidden">
           {options.map((chain) => (
             <button
-              key={chain.id}
+              key={chain.circleId}
               onClick={() => { onChange(chain); setOpen(false); }}
               className="w-full flex items-center gap-3 px-4 py-3 hover:bg-arc-400/5 transition-all"
             >
-              <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: chain.color + "22" }}>
-                {chain.icon}
-              </div>
+              <ChainIcon chain={chain} size={28} />
               <div className="flex-1 text-left">
                 <div className="font-display text-sm text-arc-50">{chain.name}</div>
               </div>
-              {chain.id === value.id && (
+              {chain.circleId === value.circleId && (
                 <svg className="w-4 h-4 text-arc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
@@ -164,79 +92,189 @@ function ChainSelector({
   );
 }
 
-function ProgressStep({
-  step,
-  label,
-  sublabel,
-  current,
-  done,
+// ─── Bridge Status Modal ──────────────────────────────────────────────────────
+
+type BridgeStatus = "idle" | "awaiting-wallet" | "processing" | "success" | "failed";
+
+function BridgeModal({
+  status,
+  result,
+  error,
+  amount,
+  fromChain,
+  toChain,
+  onClose,
 }: {
-  step: number;
-  label: string;
-  sublabel: string;
-  current: boolean;
-  done: boolean;
+  status: BridgeStatus;
+  result?: BridgeResult;
+  error?: string;
+  amount: string;
+  fromChain: BridgeChain;
+  toChain: BridgeChain;
+  onClose: () => void;
 }) {
+  if (status === "idle") return null;
+
   return (
-    <div className="flex items-start gap-3">
-      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 border transition-all ${
-        done
-          ? "bg-green-500/20 border-green-500/40 text-green-400"
-          : current
-          ? "bg-arc-400/20 border-arc-400/50 text-arc-400"
-          : "bg-dark-900 border-arc-400/15 text-dark-600"
-      }`}>
-        {done ? (
-          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        ) : current ? (
-          <div className="w-2.5 h-2.5 rounded-full bg-arc-400 animate-pulse" />
-        ) : (
-          step
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div
+        className="absolute inset-0 bg-dark-950/80 backdrop-blur-sm"
+        onClick={status === "success" || status === "failed" ? onClose : undefined}
+      />
+      <div className="relative w-full max-w-sm rounded-2xl border border-arc-400/20 bg-dark-900 p-7 shadow-2xl text-center animate-slide-up">
+
+        {/* Awaiting wallet */}
+        {status === "awaiting-wallet" && (
+          <>
+            <div className="flex items-center justify-center mb-5">
+              <div className="w-16 h-16 rounded-full border-2 border-arc-400/20 border-t-arc-400 animate-spin" />
+            </div>
+            <h3 className="font-display text-lg text-arc-50 mb-2">Confirm in Wallet</h3>
+            <p className="font-mono text-sm text-dark-400">
+              Approve the USDC burn transaction on {fromChain.name}.
+            </p>
+          </>
         )}
-      </div>
-      <div>
-        <div className={`font-display text-sm ${done ? "text-green-400" : current ? "text-arc-50" : "text-dark-600"}`}>{label}</div>
-        <div className="font-mono text-xs text-dark-500">{sublabel}</div>
+
+        {/* Processing — CCTP attestation takes 5-20 min */}
+        {status === "processing" && (
+          <>
+            <div className="flex items-center justify-center mb-5">
+              <div className="relative w-16 h-16">
+                <div className="absolute inset-0 rounded-full border-2 border-blue-500/20 border-t-blue-400 animate-spin" />
+                <div className="absolute inset-2 rounded-full border-2 border-arc-400/10 border-b-arc-400/50 animate-spin" style={{ animationDirection: "reverse", animationDuration: "1.5s" }} />
+              </div>
+            </div>
+            <h3 className="font-display text-lg text-arc-50 mb-2">Bridge In Progress</h3>
+            <p className="font-mono text-sm text-dark-400 mb-3">
+              Bridging {amount} USDC via Circle CCTP V2…
+            </p>
+            <div className="space-y-1.5 text-left rounded-lg border border-arc-400/10 bg-dark-950/40 px-3 py-2.5 mb-4">
+              <BridgeStep label="Burn USDC on source" done={true} active={false} />
+              <BridgeStep label="Circle attestation" done={false} active={true} />
+              <BridgeStep label={`Mint USDC on ${toChain.name}`} done={false} active={false} />
+            </div>
+            <p className="font-mono text-xs text-dark-500">
+              CCTP attestation typically takes 5–20 minutes. Do not close this window.
+            </p>
+          </>
+        )}
+
+        {/* Success */}
+        {status === "success" && result && (
+          <>
+            <div className="flex items-center justify-center mb-5">
+              <div className="w-16 h-16 rounded-full bg-green-500/10 border border-green-500/30 flex items-center justify-center">
+                <svg className="w-8 h-8 text-green-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+            </div>
+            <h3 className="font-display text-lg text-arc-50 mb-1">Bridge Complete</h3>
+            <p className="font-mono text-sm text-dark-400 mb-3">
+              {amount} USDC bridged from {fromChain.name} to {toChain.name}
+            </p>
+
+            {result.txHash && (
+              <a
+                href={result.explorerUrl || `https://testnet.arcscan.app/tx/${result.txHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 font-mono text-xs text-arc-400 hover:text-arc-300 border border-arc-400/20 px-3 py-2 rounded-lg transition-colors mb-4 max-w-full overflow-hidden"
+              >
+                <span className="truncate">
+                  Tx: {result.txHash.slice(0, 10)}…{result.txHash.slice(-8)}
+                </span>
+                <svg className="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />
+                </svg>
+              </a>
+            )}
+            <button onClick={onClose} className="arc-button-primary w-full text-sm py-2.5">Done</button>
+          </>
+        )}
+
+        {/* Failed */}
+        {status === "failed" && (
+          <>
+            <div className="flex items-center justify-center mb-5">
+              <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center">
+                <svg className="w-8 h-8 text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="15" y1="9" x2="9" y2="15" />
+                  <line x1="9" y1="9" x2="15" y2="15" />
+                </svg>
+              </div>
+            </div>
+            <h3 className="font-display text-lg text-arc-50 mb-2">Bridge Failed</h3>
+            <p className="font-mono text-sm text-dark-400 mb-5 break-words">
+              {error || "The bridge transaction failed or was rejected. No funds were moved."}
+            </p>
+            <button onClick={onClose} className="arc-button-secondary w-full text-sm py-2.5">Dismiss</button>
+          </>
+        )}
       </div>
     </div>
   );
 }
 
+function BridgeStep({ label, done, active }: { label: string; done: boolean; active: boolean }) {
+  return (
+    <div className="flex items-center gap-2">
+      {done ? (
+        <svg className="w-3.5 h-3.5 text-green-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      ) : active ? (
+        <div className="w-3.5 h-3.5 rounded-full border border-blue-400/60 border-t-blue-400 animate-spin shrink-0" />
+      ) : (
+        <div className="w-3.5 h-3.5 rounded-full border border-dark-600 shrink-0" />
+      )}
+      <span className={`font-mono text-xs ${done ? "text-green-400" : active ? "text-blue-300" : "text-dark-500"}`}>
+        {label}
+      </span>
+    </div>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
+const ARC_CHAIN   = BRIDGE_CHAINS[0]; // Arc Testnet
+const SEPOLIA_CHAIN = BRIDGE_CHAINS[1]; // Ethereum Sepolia (default destination)
+
 export default function BridgePanel() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const isCorrectNetwork = isArcTestnet(chainId);
+  const { bridge } = useCircleKit();
 
-  const [sourceChain, setSourceChain] = useState<ChainOption>(SUPPORTED_CHAINS[0]); // Arc
-  const [destChain, setDestChain] = useState<ChainOption>(SUPPORTED_CHAINS[1]);     // Sepolia
-  const [selectedAsset, setSelectedAsset] = useState<BridgeAsset>(BRIDGE_ASSETS[0]);
-  const [amount, setAmount] = useState("");
-  const [phase, setPhase] = useState<BridgePhase>("idle");
-  const [history, setHistory] = useState<TxHistory[]>([]);
+  const [fromChain, setFromChain] = useState<BridgeChain>(ARC_CHAIN);
+  const [toChain,   setToChain]   = useState<BridgeChain>(SEPOLIA_CHAIN);
+  const [amount,    setAmount]    = useState("");
+  const [status,    setStatus]    = useState<BridgeStatus>("idle");
+  const [result,    setResult]    = useState<BridgeResult | undefined>();
+  const [error,     setError]     = useState<string | undefined>();
   const [switching, setSwitching] = useState(false);
-  const [assetOpen, setAssetOpen] = useState(false);
 
-  const { data: balanceData } = useBalance({
+  // USDC balance on Arc Testnet (native)
+  const { data: nativeBalance, refetch: refetchBalance } = useBalance({
     address,
-    token: selectedAsset.address as `0x${string}`,
-    query: { enabled: !!address && isConnected },
+    query: { enabled: !!address && isCorrectNetwork },
   });
 
-  const balanceFormatted = balanceData ? parseFloat(balanceData.formatted).toFixed(4) : "0.0000";
-  const amountNum = parseFloat(amount) || 0;
-
-  const estimatedTime = sourceChain.id === 5042002 || destChain.id === 5042002
-    ? "~2 min"
-    : "~1 min";
-
-  const networkFee = "~0.002 USDC";
+  const balanceFormatted = nativeBalance ? parseFloat(nativeBalance.formatted).toFixed(4) : "0.0000";
+  const balanceRaw       = nativeBalance ? parseFloat(nativeBalance.formatted) : 0;
+  const amountNum        = parseFloat(amount) || 0;
 
   const handleSwapChains = () => {
-    const tmp = sourceChain;
-    setSourceChain(destChain);
-    setDestChain(tmp);
+    const tmp = fromChain;
+    setFromChain(toChain);
+    setToChain(tmp);
+    setAmount("");
+  };
+
+  const handleMax = () => {
+    if (balanceRaw > 0.001) setAmount((balanceRaw - 0.001).toFixed(6));
   };
 
   const handleSwitchNetwork = async () => {
@@ -245,83 +283,100 @@ export default function BridgePanel() {
     setSwitching(false);
   };
 
+  /** Execute a real cross-chain USDC bridge via Circle CCTP V2. */
   const handleBridge = useCallback(async () => {
-    if (!isConnected || !amount) return;
-    const mockHash = `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join("")}`;
+    if (!isConnected || !isCorrectNetwork || !address || amountNum <= 0) return;
 
-    const entry: TxHistory = {
-      id: Math.random().toString(36).slice(2),
-      fromChain: sourceChain.shortName,
-      toChain: destChain.shortName,
-      asset: selectedAsset.symbol,
-      amount,
-      status: "pending",
-      txHash: mockHash,
-      timestamp: Date.now(),
-    };
+    setResult(undefined);
+    setError(undefined);
+    setStatus("awaiting-wallet");
 
-    setPhase("confirming");
-    await new Promise((r) => setTimeout(r, 1800));
-    setPhase("attesting");
-    setHistory((h) => [{ ...entry, status: "attesting" }, ...h]);
-    await new Promise((r) => setTimeout(r, 2400));
-    setPhase("minting");
-    setHistory((h) => h.map((x) => x.id === entry.id ? { ...x, status: "minting" } : x));
-    await new Promise((r) => setTimeout(r, 1600));
-    setPhase("complete");
-    setHistory((h) => h.map((x) => x.id === entry.id ? { ...x, status: "complete" } : x));
-    setAmount("");
-  }, [isConnected, amount, sourceChain, destChain, selectedAsset]);
+    try {
+      // Phase 1 — wallet signs the burn tx (triggers MetaMask popup)
+      // Phase 2 — Circle attestation (SDK polls internally, updates status to processing)
+      // We transition to "processing" right after the call starts
+      // (the SDK blocks until full completion)
 
-  const canBridge = isConnected && amountNum > 0 && amountNum <= parseFloat(balanceData?.formatted ?? "0");
+      const bridgePromise = bridge({
+        fromChain:        fromChain.circleId,
+        toChain:          toChain.circleId,
+        amount,
+        recipientAddress: address,
+      });
+
+      // Give the user a moment to see "awaiting-wallet", then switch to "processing"
+      // once they've signed (we can't know exactly when the popup closes, so we use
+      // a short delay as a reasonable UX heuristic).
+      const processingTimer = setTimeout(() => setStatus("processing"), 3000);
+
+      const bridgeResult = await bridgePromise;
+      clearTimeout(processingTimer);
+
+      setResult(bridgeResult);
+      setStatus("success");
+      setAmount("");
+      refetchBalance();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.toLowerCase().includes("user rejected") || msg.toLowerCase().includes("denied")) {
+        setError("You rejected the transaction in your wallet.");
+      } else {
+        setError(msg);
+      }
+      setStatus("failed");
+    }
+  }, [isConnected, isCorrectNetwork, address, amountNum, amount, bridge, fromChain, toChain, refetchBalance]);
+
+  const canBridge =
+    isConnected &&
+    isCorrectNetwork &&
+    amountNum > 0 &&
+    amountNum <= balanceRaw &&
+    fromChain.circleId !== toChain.circleId;
 
   return (
     <>
-      <div className="space-y-3">
-        {/* Chain selectors */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <ChainSelector value={sourceChain} onChange={setSourceChain} exclude={destChain.id} label="Source Chain" />
+      <div className="space-y-4">
+        {/* From chain */}
+        <ChainSelector
+          label="From"
+          value={fromChain}
+          onChange={(c) => { setFromChain(c); if (c.circleId === toChain.circleId) setToChain(ARC_CHAIN); }}
+          exclude={toChain.circleId}
+        />
 
-          {/* Swap button */}
-          <div className="hidden sm:flex items-end justify-center pb-3">
-            <button
-              onClick={handleSwapChains}
-              className="w-8 h-8 rounded-lg bg-dark-900 border border-arc-400/20 hover:border-arc-400/50 flex items-center justify-center text-dark-400 hover:text-arc-400 transition-all"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <polyline points="17 1 21 5 17 9" />
-                <path d="M3 11V9a4 4 0 014-4h14" />
-                <polyline points="7 23 3 19 7 15" />
-                <path d="M21 13v2a4 4 0 01-4 4H3" />
-              </svg>
-            </button>
-          </div>
-
-          <ChainSelector value={destChain} onChange={setDestChain} exclude={sourceChain.id} label="Destination Chain" />
-        </div>
-
-        {/* Mobile swap chains */}
-        <div className="flex sm:hidden items-center justify-center">
-          <button onClick={handleSwapChains} className="arc-button-secondary text-xs px-4 py-2 flex items-center gap-1.5">
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <polyline points="17 1 21 5 17 9" />
-              <path d="M3 11V9a4 4 0 014-4h14" />
-              <polyline points="7 23 3 19 7 15" />
-              <path d="M21 13v2a4 4 0 01-4 4H3" />
+        {/* Swap direction */}
+        <div className="flex items-center justify-center relative">
+          <div className="absolute inset-x-0 h-px bg-arc-400/10" />
+          <button
+            onClick={handleSwapChains}
+            className="relative w-9 h-9 rounded-xl bg-dark-900 border border-arc-400/20 hover:border-arc-400/50 flex items-center justify-center text-dark-400 hover:text-arc-400 hover:bg-arc-400/5 transition-all hover:rotate-180 duration-300"
+            title="Swap direction"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <polyline points="19 12 12 19 5 12" />
             </svg>
-            Swap Direction
           </button>
         </div>
 
-        {/* Asset + Amount */}
-        <div className="rounded-xl border border-arc-400/15 bg-dark-950/60 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <span className="font-mono text-xs text-dark-400 uppercase tracking-widest">Asset & Amount</span>
-            {isConnected && (
+        {/* To chain */}
+        <ChainSelector
+          label="To"
+          value={toChain}
+          onChange={(c) => { setToChain(c); if (c.circleId === fromChain.circleId) setFromChain(ARC_CHAIN); }}
+          exclude={fromChain.circleId}
+        />
+
+        {/* Amount */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <span className="font-mono text-xs text-dark-400 uppercase tracking-widest">Amount (USDC)</span>
+            {isConnected && isCorrectNetwork && (
               <div className="flex items-center gap-2">
                 <span className="font-mono text-xs text-dark-500">Balance: {balanceFormatted}</span>
                 <button
-                  onClick={() => balanceData && setAmount((parseFloat(balanceData.formatted) * 0.999).toFixed(6))}
+                  onClick={handleMax}
                   className="font-mono text-xs text-arc-400 hover:text-arc-300 bg-arc-400/10 hover:bg-arc-400/20 px-2 py-0.5 rounded transition-all"
                 >
                   MAX
@@ -329,38 +384,14 @@ export default function BridgePanel() {
               </div>
             )}
           </div>
-          <div className="flex items-center gap-3">
-            {/* Asset selector */}
-            <div className="relative shrink-0">
-              <button
-                onClick={() => setAssetOpen(!assetOpen)}
-                className="flex items-center gap-2 bg-dark-900/80 border border-arc-400/15 hover:border-arc-400/35 rounded-xl px-3 py-2.5 transition-all group"
-              >
-                <div className="w-5 h-5 rounded-full" style={{ background: selectedAsset.color }} />
-                <span className="font-display text-sm text-arc-50 group-hover:text-arc-300 transition-colors">{selectedAsset.symbol}</span>
-                <svg className={`w-3.5 h-3.5 text-dark-500 transition-transform ${assetOpen ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </button>
-              {assetOpen && (
-                <div className="absolute z-30 mt-1 left-0 w-44 rounded-xl border border-arc-400/20 bg-dark-900 shadow-2xl overflow-hidden">
-                  {BRIDGE_ASSETS.map((asset) => (
-                    <button
-                      key={asset.symbol}
-                      onClick={() => { setSelectedAsset(asset); setAssetOpen(false); }}
-                      className="w-full flex items-center gap-2 px-4 py-3 hover:bg-arc-400/5 transition-all"
-                    >
-                      <div className="w-5 h-5 rounded-full shrink-0" style={{ background: asset.color }} />
-                      <div className="text-left">
-                        <div className="font-display text-sm text-arc-50">{asset.symbol}</div>
-                        <div className="font-mono text-xs text-dark-500">{asset.name}</div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
+          <div className="rounded-xl border border-arc-400/15 bg-dark-950/60 p-4 flex items-center gap-3">
+            {/* USDC icon */}
+            <div className="shrink-0">
+              <svg width={28} height={28} viewBox="0 0 32 32" fill="none">
+                <circle cx="16" cy="16" r="16" fill="#2775CA" />
+                <path d="M20.022 18.124c0-2.124-1.28-2.852-3.84-3.156-1.828-.232-2.196-.696-2.196-1.504s.6-1.312 1.8-1.312c1.08 0 1.68.36 1.972 1.248a.38.38 0 00.368.252h.844a.36.36 0 00.36-.372c-.228-1.536-1.24-2.412-2.748-2.604V9.5a.37.37 0 00-.372-.372h-.8a.37.37 0 00-.372.372v1.12c-1.756.228-2.88 1.368-2.88 2.796 0 2.028 1.228 2.808 3.788 3.112 1.704.228 2.248.624 2.248 1.556 0 .932-.812 1.572-1.92 1.572-1.508 0-2.004-.64-2.164-1.54a.378.378 0 00-.372-.3h-.888a.36.36 0 00-.36.372c.196 1.688 1.356 2.7 3.024 2.9v1.14a.37.37 0 00.372.372h.8a.37.37 0 00.372-.372v-1.132c1.764-.252 2.916-1.436 2.916-2.972z" fill="white" />
+              </svg>
             </div>
-
             <input
               type="number"
               min="0"
@@ -370,77 +401,34 @@ export default function BridgePanel() {
               className="flex-1 bg-transparent text-right text-2xl font-mono text-arc-50 placeholder-dark-700 focus:outline-none"
             />
           </div>
+          {amountNum > balanceRaw && balanceRaw > 0 && (
+            <p className="mt-1.5 font-mono text-xs text-red-400">Insufficient USDC balance</p>
+          )}
         </div>
 
-        {/* Bridge details */}
+        {/* Bridge info */}
         <div className="rounded-xl border border-arc-400/10 bg-dark-950/40 px-4 py-3 space-y-2">
           <div className="flex items-center justify-between font-mono text-xs">
-            <span className="text-dark-500">Route</span>
-            <span className="text-dark-300">{sourceChain.shortName} → {destChain.shortName}</span>
+            <span className="text-dark-500">Protocol</span>
+            <span className="text-dark-300">Circle CCTP V2</span>
           </div>
           <div className="flex items-center justify-between font-mono text-xs">
-            <span className="text-dark-500">Estimated Time</span>
-            <span className="text-dark-300">{estimatedTime}</span>
+            <span className="text-dark-500">Asset</span>
+            <span className="text-dark-300">USDC (native on Arc)</span>
           </div>
           <div className="flex items-center justify-between font-mono text-xs">
-            <span className="text-dark-500">Network Fee</span>
-            <span className="text-dark-300">{networkFee}</span>
+            <span className="text-dark-500">Est. time</span>
+            <span className="text-amber-400/80">5–20 minutes (CCTP attestation)</span>
           </div>
           <div className="flex items-center justify-between font-mono text-xs">
-            <span className="text-dark-500">You Receive</span>
-            <span className="text-green-400 font-medium">{amountNum > 0 ? amountNum.toFixed(6) : "—"} {selectedAsset.symbol}</span>
+            <span className="text-dark-500">Recipient</span>
+            <span className="text-dark-300 truncate ml-2">
+              {address ? `${address.slice(0, 6)}…${address.slice(-4)}` : "—"}
+            </span>
           </div>
         </div>
 
-        {/* Transaction Progress Modal */}
-        {phase !== "idle" && (
-          <div className="rounded-xl border border-arc-400/20 bg-dark-950/80 px-5 py-5 space-y-4">
-            <div className="flex items-center justify-between mb-1">
-              <h4 className="font-display text-sm text-arc-400/80 uppercase tracking-widest">Bridge Progress</h4>
-              {phase === "complete" && (
-                <button
-                  onClick={() => setPhase("idle")}
-                  className="font-mono text-xs text-dark-500 hover:text-arc-400 transition-colors"
-                >
-                  Dismiss
-                </button>
-              )}
-            </div>
-            <ProgressStep
-              step={1}
-              label="Transaction Submitted"
-              sublabel={`Sent on ${sourceChain.name}`}
-              current={phase === "confirming"}
-              done={["attesting", "minting", "complete"].includes(phase)}
-            />
-            <ProgressStep
-              step={2}
-              label="Attestation"
-              sublabel="Circle validators confirming burn"
-              current={phase === "attesting"}
-              done={["minting", "complete"].includes(phase)}
-            />
-            <ProgressStep
-              step={3}
-              label="Minting"
-              sublabel={`Receiving on ${destChain.name}`}
-              current={phase === "minting"}
-              done={phase === "complete"}
-            />
-            {phase === "complete" && (
-              <div className="pt-2 border-t border-arc-400/10">
-                <div className="flex items-center gap-2 text-green-400">
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  <span className="font-display text-sm">Bridge complete — {amount} {selectedAsset.symbol} received on {destChain.name}</span>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Bridge Button */}
+        {/* Action Button */}
         {!isConnected ? (
           <ConnectButton.Custom>
             {({ openConnectModal }) => (
@@ -453,7 +441,7 @@ export default function BridgePanel() {
               </button>
             )}
           </ConnectButton.Custom>
-        ) : !isCorrectNetwork && sourceChain.id === 5042002 ? (
+        ) : !isCorrectNetwork ? (
           <button
             onClick={handleSwitchNetwork}
             disabled={switching}
@@ -464,73 +452,36 @@ export default function BridgePanel() {
         ) : (
           <button
             onClick={handleBridge}
-            disabled={!canBridge || (phase !== "idle" && phase !== "complete")}
+            disabled={!canBridge}
             className="arc-button-primary w-full py-4 text-base flex items-center justify-center gap-2"
           >
-            {phase === "confirming" || phase === "attesting" || phase === "minting" ? (
-              <>
-                <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                Bridging…
-              </>
-            ) : (
-              <>
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <path d="M18 8h1a4 4 0 010 8h-1" />
-                  <path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z" />
-                  <line x1="6" y1="1" x2="6" y2="4" />
-                  <line x1="10" y1="1" x2="10" y2="4" />
-                  <line x1="14" y1="1" x2="14" y2="4" />
-                </svg>
-                {!amount ? "Enter an Amount" : amountNum > parseFloat(balanceData?.formatted ?? "0") ? `Insufficient ${selectedAsset.symbol}` : `Bridge ${selectedAsset.symbol} to ${destChain.shortName}`}
-              </>
-            )}
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M18 8h1a4 4 0 010 8h-1" />
+              <path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z" />
+              <line x1="6" y1="1" x2="6" y2="4" />
+              <line x1="10" y1="1" x2="10" y2="4" />
+              <line x1="14" y1="1" x2="14" y2="4" />
+            </svg>
+            {!amount
+              ? "Enter an Amount"
+              : amountNum > balanceRaw
+              ? "Insufficient USDC"
+              : fromChain.circleId === toChain.circleId
+              ? "Select different chains"
+              : `Bridge ${amount} USDC → ${toChain.shortName}`}
           </button>
         )}
-
-        {/* CCTP Badge */}
-        <div className="flex items-center justify-center pt-1">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-arc-400/10 bg-dark-950/50">
-            <div className="w-3 h-3 rounded-full bg-gradient-to-br from-blue-400 to-arc-500" />
-            <span className="font-mono text-xs text-dark-500">Powered by Circle CCTP V2</span>
-          </div>
-        </div>
-
-        {/* History */}
-        {history.length > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-xs text-dark-500 uppercase tracking-widest">Recent Transactions</span>
-              <button onClick={() => setHistory([])} className="font-mono text-xs text-dark-600 hover:text-dark-400 transition-colors">Clear</button>
-            </div>
-            {history.map((tx) => (
-              <div key={tx.id} className="flex items-center gap-3 rounded-lg border border-arc-400/10 bg-dark-950/40 px-4 py-3">
-                <div className={`w-2 h-2 rounded-full shrink-0 ${
-                  tx.status === "complete" ? "bg-green-400" :
-                  tx.status === "failed" ? "bg-red-400" : "bg-arc-400 animate-pulse"
-                }`} />
-                <div className="flex-1 min-w-0">
-                  <div className="font-mono text-xs text-arc-50">{tx.amount} {tx.asset}</div>
-                  <div className="font-mono text-xs text-dark-500">{tx.fromChain} → {tx.toChain}</div>
-                </div>
-                <div className="shrink-0 text-right">
-                  <div className={`font-mono text-xs ${
-                    tx.status === "complete" ? "text-green-400" :
-                    tx.status === "failed" ? "text-red-400" : "text-arc-400"
-                  }`}>
-                    {tx.status.charAt(0).toUpperCase() + tx.status.slice(1)}
-                  </div>
-                  <div className="font-mono text-xs text-dark-600">
-                    {new Date(tx.timestamp).toLocaleTimeString()}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
+
+      <BridgeModal
+        status={status}
+        result={result}
+        error={error}
+        amount={amount}
+        fromChain={fromChain}
+        toChain={toChain}
+        onClose={() => { setStatus("idle"); setResult(undefined); setError(undefined); }}
+      />
     </>
   );
 }
