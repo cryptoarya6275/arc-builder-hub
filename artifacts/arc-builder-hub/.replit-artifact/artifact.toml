@@ -5,10 +5,6 @@ version = "1.0.0"
 id = "artifacts/arc-builder-hub"
 router = "path"
 
-[[integratedSkills]]
-name = "react-vite"
-version = "1.0.0"
-
 [[services]]
 name = "web"
 paths = [ "/" ]
@@ -19,8 +15,8 @@ run = "pnpm --filter @workspace/arc-builder-hub run dev"
 
 [services.production]
 build = [ "pnpm", "--filter", "@workspace/arc-builder-hub", "run", "build" ]
-publicDir = "artifacts/arc-builder-hub/dist/public"
 serve = "static"
+publicDir = "artifacts/arc-builder-hub/dist/public"
 
 [[services.production.rewrites]]
 from = "/*"
